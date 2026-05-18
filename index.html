@@ -209,6 +209,9 @@ let cloudLastSaved='';
 
 if(sb){
   sb.auth.onAuthStateChange(async (event, session)=>{
+    if(manualSignOut){
+      cloudUser=null;cloudReady=false;updateCloudUi();showLogin();return;
+    }
     if(session&&session.user){
       cloudUser=session.user;cloudReady=true;updateCloudUi();
       if(document.getElementById('welcome') && !document.getElementById('welcome').classList.contains('hidden')){
@@ -225,6 +228,7 @@ if(sb){
 let cloudSaveState='';
 let cloudLastError='';
 let cloudLastLoaded='';
+let manualSignOut=false;
 
 
 const KEY='og_calendar_data_v30', DB_NAME='og_calendar_db_v29', DB_STORE='appdata', DB_ID='main', OLD=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','cultiu_calendari_v1','og_calendar_data_v17','og_calendar_data_v19'], CLEAN_KEYS=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','og_calendar_data_v19','og_calendar_data_v17','cultiu_calendari_v1'], LANG_KEY='og_calendar_lang_v1', DARK_KEY='og_calendar_dark_v1';
@@ -259,6 +263,7 @@ cloudErrorDetail:'Error del núvol',manualSaveTest:'Prova de guardat manual',sav
 loadingCloud:'Carregant dades del núvol...',cloudAutoLoaded:'Dades del núvol carregades automàticament',noCloudDataYet:'Encara no hi havia dades guardades al núvol. Es guardarà la còpia actual.',
 sessionRestored:'Sessió recuperada automàticament',sessionTip:'Si no cliques Sortir, l’app intentarà recordar la sessió en aquest navegador.',
 checkingSession:'Comprovant sessió guardada...',
+signedOutOk:'Sessió tancada correctament',signingOut:'Tancant sessió...',
 months:['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'],
 slots:['No ho sé','1a setmana de setembre','2a setmana de setembre','3a setmana de setembre','4a setmana de setembre',"1a setmana d'octubre","2a setmana d'octubre","3a setmana d'octubre","4a setmana d'octubre",'1a setmana de novembre','2a setmana de novembre','3a setmana de novembre','4a setmana de novembre']
 },
@@ -287,6 +292,7 @@ cloudErrorDetail:'Error de la nube',manualSaveTest:'Prueba de guardado manual',s
 loadingCloud:'Cargando datos de la nube...',cloudAutoLoaded:'Datos de la nube cargados automáticamente',noCloudDataYet:'Todavía no había datos guardados en la nube. Se guardará la copia actual.',
 sessionRestored:'Sesión recuperada automáticamente',sessionTip:'Si no pulsas Salir, la app intentará recordar la sesión en este navegador.',
 checkingSession:'Comprobando sesión guardada...',
+signedOutOk:'Sesión cerrada correctamente',signingOut:'Cerrando sesión...',
 months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 slots:['No lo sé','1.ª semana de septiembre','2.ª semana de septiembre','3.ª semana de septiembre','4.ª semana de septiembre','1.ª semana de octubre','2.ª semana de octubre','3.ª semana de octubre','4.ª semana de octubre','1.ª semana de noviembre','2.ª semana de noviembre','3.ª semana de noviembre','4.ª semana de noviembre']
 },
@@ -315,6 +321,7 @@ cloudErrorDetail:'Cloud error',manualSaveTest:'Manual save test',savedButCheck:'
 loadingCloud:'Loading cloud data...',cloudAutoLoaded:'Cloud data loaded automatically',noCloudDataYet:'There was no cloud data yet. The current copy will be saved.',
 sessionRestored:'Session restored automatically',sessionTip:'If you do not tap Sign out, the app will try to remember the session in this browser.',
 checkingSession:'Checking saved session...',
+signedOutOk:'Session signed out successfully',signingOut:'Signing out...',
 months:['January','February','March','April','May','June','July','August','September','October','November','December'],
 slots:["I don't know",'1st week of September','2nd week of September','3rd week of September','4th week of September','1st week of October','2nd week of October','3rd week of October','4th week of October','1st week of November','2nd week of November','3rd week of November','4th week of November']
 },
@@ -343,6 +350,7 @@ cloudErrorDetail:'Skyfejl',manualSaveTest:'Manuel gemmetest',savedButCheck:'Gem 
 loadingCloud:'Indlæser data fra skyen...',cloudAutoLoaded:'Data fra skyen indlæst automatisk',noCloudDataYet:'Der var endnu ingen data i skyen. Den aktuelle kopi gemmes.',
 sessionRestored:'Session gendannet automatisk',sessionTip:'Hvis du ikke trykker Log ud, prøver appen at huske sessionen i denne browser.',
 checkingSession:'Kontrollerer gemt session...',
+signedOutOk:'Session lukket korrekt',signingOut:'Logger ud...',
 months:['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'],
 slots:['Ved ikke','1. uge i september','2. uge i september','3. uge i september','4. uge i september','1. uge i oktober','2. uge i oktober','3. uge i oktober','4. uge i oktober','1. uge i november','2. uge i november','3. uge i november','4. uge i november']
 }
@@ -554,12 +562,26 @@ async function signInCloud(){
   }finally{if(btn)btn.disabled=false}
 }
 async function signOutCloud(){
-  try{ if(sb)await sb.auth.signOut(); }catch(e){console.error(e)}
+  manualSignOut=true;
+  setAuthMsg(L('signingOut'));
+  try{
+    if(sb)await sb.auth.signOut({scope:'local'});
+  }catch(e){
+    console.error(e);
+    try{ if(sb)await sb.auth.signOut(); }catch(_e){}
+  }
+  try{
+    localStorage.removeItem('og-calendar-cloud-auth');
+    sessionStorage.removeItem('og-calendar-cloud-auth');
+    Object.keys(localStorage).forEach(k=>{if(k.includes('supabase')||k.includes('sb-'))localStorage.removeItem(k)});
+    Object.keys(sessionStorage).forEach(k=>{if(k.includes('supabase')||k.includes('sb-'))sessionStorage.removeItem(k)});
+  }catch(e){console.error(e)}
   cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
   updateCloudUi();
   showLogin();
-  setAuthMsg(L('signOut'),'ok');
-  toast(L('signOut'));
+  setAuthMsg(L('signedOutOk'),'ok');
+  toast(L('signedOutOk'));
+  setTimeout(()=>{manualSignOut=false},1200);
 }
 async function loadCloudData(showToast=true){
   if(!sb||!cloudUser)return false;
@@ -762,7 +784,7 @@ function downloadJson(obj,name,msg){
   toast(msg);
 }
 
-function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" onclick="signOutCloud()">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi()}
+function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" type="button" onclick="signOutCloud()">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi()}
 function exportData(){downloadJson(data,`calendari-cultiu-${data.season}.json`,L('exported'))}
 function exportLightData(){downloadJson(cloneWithoutPhotos(data),`calendari-cultiu-${data.season}-sense-fotos.json`,L('photosRemoved'))}
 function importData(ev){
