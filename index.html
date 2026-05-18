@@ -125,6 +125,15 @@ body.dark .cloudDebugLine{background:#111a13;border-color:#2f4632;color:#dcebdc}
 
 .booting #welcome{display:none!important}
 
+
+body.logged-out header,
+body.logged-out main,
+body.logged-out .tabs,
+body.logged-out .modal,
+body.logged-out #photoModal,
+body.logged-out #plantModal{display:none!important}
+body.logged-out #welcome{display:flex!important}
+
 </style>
 </head>
 <body class="booting">
@@ -209,7 +218,7 @@ let cloudLastSaved='';
 
 if(sb){
   sb.auth.onAuthStateChange(async (event, session)=>{
-    if(manualSignOut){
+    if(manualSignOut||hardLoggedOut||new URLSearchParams(window.location.search).has('logout')){
       cloudUser=null;cloudReady=false;updateCloudUi();showLogin();return;
     }
     if(session&&session.user){
@@ -229,6 +238,7 @@ let cloudSaveState='';
 let cloudLastError='';
 let cloudLastLoaded='';
 let manualSignOut=false;
+let hardLoggedOut=false;
 
 
 const KEY='og_calendar_data_v30', DB_NAME='og_calendar_db_v29', DB_STORE='appdata', DB_ID='main', OLD=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','cultiu_calendari_v1','og_calendar_data_v17','og_calendar_data_v19'], CLEAN_KEYS=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','og_calendar_data_v19','og_calendar_data_v17','cultiu_calendari_v1'], LANG_KEY='og_calendar_lang_v1', DARK_KEY='og_calendar_dark_v1';
@@ -483,11 +493,13 @@ let data=fresh();
 
 function enterApp(){
   document.body.classList.remove('booting');
+  document.body.classList.remove('logged-out');
   const w=document.getElementById('welcome');
   if(w)w.classList.add('hidden');
 }
 function showLogin(){
   document.body.classList.remove('booting');
+  document.body.classList.add('logged-out');
   const w=document.getElementById('welcome');
   if(w)w.classList.remove('hidden');
   setAuthMsg('');
@@ -569,9 +581,8 @@ async function signInCloud(){
 
 async function hardLogoutCloud(){
   manualSignOut=true;
-  try{ cloudUser=null; cloudReady=false; cloudSaveState=''; cloudLastError=''; updateCloudUi(); }catch(e){}
-  try{ setAuthMsg(L('logoutReloading'),'ok'); }catch(e){}
-  try{ toast(L('logoutReloading')); }catch(e){}
+  hardLoggedOut=true;
+  cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
   try{
     const keys=[];
     for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)keys.push(k)}
@@ -585,10 +596,19 @@ async function hardLogoutCloud(){
     });
   }catch(e){console.error('auth storage cleanup failed',e)}
   try{
-    if(sb && sb.auth) await sb.auth.signOut({scope:'local'});
-  }catch(e){console.error('supabase signout failed',e)}
+    if(sb && sb.auth){
+      Promise.race([
+        sb.auth.signOut({scope:'local'}),
+        new Promise(resolve=>setTimeout(resolve,250))
+      ]).catch(e=>console.error('supabase signout failed',e));
+    }
+  }catch(e){console.error(e)}
+  try{updateCloudUi()}catch(e){}
+  showLogin();
+  try{setAuthMsg(L('signedOutOk'),'ok')}catch(e){}
+  try{toast(L('signedOutOk'))}catch(e){}
   const base=window.location.href.split('?')[0].split('#')[0];
-  window.location.replace(base+'?logout='+Date.now());
+  setTimeout(()=>{window.location.replace(base+'?logout='+Date.now())},120);
 }
 window.hardLogoutCloud=hardLogoutCloud;
 
