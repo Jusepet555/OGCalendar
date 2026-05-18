@@ -210,6 +210,7 @@ const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON
     storageKey:'og-calendar-cloud-auth'
   }
 }):null;
+const FORCE_LOGIN_KEY='og-calendar-force-login';
 let cloudUser=null;
 let cloudReady=false;
 let cloudSaving=false;
@@ -218,7 +219,8 @@ let cloudLastSaved='';
 
 if(sb){
   sb.auth.onAuthStateChange(async (event, session)=>{
-    if(manualSignOut||hardLoggedOut||new URLSearchParams(window.location.search).has('logout')){
+    let mustLogin=false;try{mustLogin=localStorage.getItem(FORCE_LOGIN_KEY)==='1'}catch(e){}
+    if(mustLogin||manualSignOut||hardLoggedOut||new URLSearchParams(window.location.search).has('logout')){
       cloudUser=null;cloudReady=false;updateCloudUi();showLogin();return;
     }
     if(session&&session.user){
@@ -533,6 +535,8 @@ async function signUpCloud(){
   if(!sb){setAuthMsg(L('supabaseNotLoaded'),'err');return}
   const email=val('authEmail').trim(), password=val('authPassword');
   if(!email||!password){setAuthMsg(L('enterEmailPass'),'err');return}
+  try{localStorage.removeItem(FORCE_LOGIN_KEY)}catch(e){}
+  manualSignOut=false;hardLoggedOut=false;
   setAuthMsg(L('creatingAccount'));
   const btn=document.getElementById('signUpBtn'); if(btn)btn.disabled=true;
   try{
@@ -555,6 +559,8 @@ async function signInCloud(){
   if(!sb){setAuthMsg(L('supabaseNotLoaded'),'err');return}
   const email=val('authEmail').trim(), password=val('authPassword');
   if(!email||!password){setAuthMsg(L('enterEmailPass'),'err');return}
+  try{localStorage.removeItem(FORCE_LOGIN_KEY)}catch(e){}
+  manualSignOut=false;hardLoggedOut=false;
   setAuthMsg(L('signingIn'));
   const btn=document.getElementById('signInBtn'); if(btn)btn.disabled=true;
   try{
@@ -581,6 +587,7 @@ async function signInCloud(){
 
 async function hardLogoutCloud(){
   manualSignOut=true;
+  try{localStorage.setItem(FORCE_LOGIN_KEY,'1')}catch(e){}
   hardLoggedOut=true;
   cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
   try{
@@ -686,14 +693,37 @@ function scheduleCloudSave(){
 async function saveCloudManual(){await save(false);const ok=await saveCloudData(true);if(ok)toast(L('savedButCheck'))}
 async function loadCloudManual(){await loadCloudData(true)}
 async function initCloudSession(){
-  if(!sb)return;
-  const {data:res}=await sb.auth.getSession();
-  if(res&&res.session&&res.session.user){
-    cloudUser=res.session.user;cloudReady=true;updateCloudUi();
-    await loadCloudData(false);
-  }else updateCloudUi();
+  let mustLogin=false;
+  try{mustLogin=localStorage.getItem(FORCE_LOGIN_KEY)==='1'}catch(e){}
+  if(mustLogin||new URLSearchParams(window.location.search).has('logout')){
+    manualSignOut=true;hardLoggedOut=true;cloudUser=null;cloudReady=false;cloudSaveState='';updateCloudUi();showLogin();return;
+  }
+  if(!sb){showLogin();return}
+  try{
+    setAuthMsg(L('checkingSession'));
+    let user=null;
+    const {data:sessionRes}=await sb.auth.getSession();
+    if(sessionRes&&sessionRes.session&&sessionRes.session.user)user=sessionRes.session.user;
+    if(!user){
+      const {data:userRes}=await sb.auth.getUser();
+      if(userRes&&userRes.user)user=userRes.user;
+    }
+    if(user&&!manualSignOut&&!hardLoggedOut){
+      cloudUser=user;cloudReady=true;cloudSaveState='loading';cloudLastError='';updateCloudUi();
+      const loaded=await loadCloudData(false);
+      if(!loaded)await saveCloudData(false);
+      renderAll();
+      setAuthMsg(L('sessionRestored'),'ok');
+      enterApp();
+      updateCloudUi();
+      return;
+    }
+  }catch(e){
+    console.error('session restore error',e);
+  }
+  cloudUser=null;cloudReady=false;cloudSaveState='';updateCloudUi();
+  showLogin();
 }
-
 async function initData(){
   try{
     const fromDb=await dbGet();
