@@ -102,6 +102,10 @@ body.dark .authBox p{color:#c6d7c8}
 body.dark .cloudBadge{background:#14351b;color:#dff5df;border-color:#346f3b}
 body.dark .cloudBadge.off{background:#3b2a12;color:#ffe2b5;border-color:#6b4d22}
 
+
+.cloudSaveLine{margin-top:6px;font-size:.78rem;color:#56615a}
+body.dark .cloudSaveLine{color:#c6d7c8}
+
 </style>
 </head>
 <body>
@@ -158,6 +162,8 @@ let cloudUser=null;
 let cloudReady=false;
 let cloudSaving=false;
 let cloudSaveTimer=null;
+let cloudLastSaved='';
+let cloudSaveState='';
 
 
 const KEY='og_calendar_data_v30', DB_NAME='og_calendar_db_v29', DB_STORE='appdata', DB_ID='main', OLD=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','cultiu_calendari_v1','og_calendar_data_v17','og_calendar_data_v19'], CLEAN_KEYS=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','og_calendar_data_v19','og_calendar_data_v17','cultiu_calendari_v1'], LANG_KEY='og_calendar_lang_v1', DARK_KEY='og_calendar_dark_v1';
@@ -185,6 +191,7 @@ exportLight:'Exportar còpia lleugera sense fotos',storageInfo:'Pes aproximat de
 specificPlant:'Planta concreta',allPlants:'Tota la varietat',
 safetyTitle:'Avís de responsabilitat',safetyText:'L’edat mínima per utilitzar aquesta eina és de 21 anys. Aquesta pàgina no promou l’ús de cap tipus de substància. És una eina de registre i organització del calendari de treball a l’hort o al jardí.',
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Versió de prova amb usuari i backend gratuït.',email:'Email',password:'Contrasenya',signIn:'Entrar',signUp:'Crear compte',signOut:'Sortir',cloudStatus:'Núvol',cloudOnline:'Connectat al núvol',cloudOffline:'Mode local',cloudSaved:'Dades guardades al núvol',cloudLoaded:'Dades carregades del núvol',cloudSaveError:'No he pogut guardar al núvol',cloudLoadError:'No he pogut carregar del núvol',authError:'Error d’accés',checkEmail:'Compte creat. Revisa el correu si Supabase demana confirmació.',syncNow:'Guardar al núvol ara',loadCloud:'Carregar del núvol',localWarning:'Aquesta és una versió experimental. La v32 local bona es conserva intacta.',
+autoSaveOn:'Guardat automàtic activat',savingCloud:'Guardant al núvol...',cloudAutoSaved:'Canvis guardats al núvol',lastCloudSave:'Últim guardat al núvol',
 months:['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'],
 slots:['No ho sé','1a setmana de setembre','2a setmana de setembre','3a setmana de setembre','4a setmana de setembre',"1a setmana d'octubre","2a setmana d'octubre","3a setmana d'octubre","4a setmana d'octubre",'1a setmana de novembre','2a setmana de novembre','3a setmana de novembre','4a setmana de novembre']
 },
@@ -206,6 +213,7 @@ exportLight:'Exportar copia ligera sin fotos',storageInfo:'Peso aproximado de lo
 specificPlant:'Planta concreta',allPlants:'Toda la variedad',
 safetyTitle:'Aviso de responsabilidad',safetyText:'La edad mínima para utilizar esta herramienta es de 21 años. Esta página no promueve el uso de ningún tipo de sustancia. Es una herramienta de registro y organización del calendario de trabajo en el huerto o jardín.',
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Versión de prueba con usuario y backend gratuito.',email:'Email',password:'Contraseña',signIn:'Entrar',signUp:'Crear cuenta',signOut:'Salir',cloudStatus:'Nube',cloudOnline:'Conectado a la nube',cloudOffline:'Modo local',cloudSaved:'Datos guardados en la nube',cloudLoaded:'Datos cargados de la nube',cloudSaveError:'No he podido guardar en la nube',cloudLoadError:'No he podido cargar de la nube',authError:'Error de acceso',checkEmail:'Cuenta creada. Revisa el correo si Supabase pide confirmación.',syncNow:'Guardar en la nube ahora',loadCloud:'Cargar de la nube',localWarning:'Esta es una versión experimental. La v32 local buena se conserva intacta.',
+autoSaveOn:'Guardado automático activado',savingCloud:'Guardando en la nube...',cloudAutoSaved:'Cambios guardados en la nube',lastCloudSave:'Último guardado en la nube',
 months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 slots:['No lo sé','1.ª semana de septiembre','2.ª semana de septiembre','3.ª semana de septiembre','4.ª semana de septiembre','1.ª semana de octubre','2.ª semana de octubre','3.ª semana de octubre','4.ª semana de octubre','1.ª semana de noviembre','2.ª semana de noviembre','3.ª semana de noviembre','4.ª semana de noviembre']
 },
@@ -227,6 +235,7 @@ exportLight:'Export lightweight backup without photos',storageInfo:'Approximate 
 specificPlant:'Specific plant',allPlants:'Whole variety',
 safetyTitle:'Responsibility notice',safetyText:'The minimum age to use this tool is 21. This page does not promote the use of any type of substance. It is a tool for recording and organizing the work calendar in the vegetable garden or garden.',
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Test version with user account and free backend.',email:'Email',password:'Password',signIn:'Sign in',signUp:'Create account',signOut:'Sign out',cloudStatus:'Cloud',cloudOnline:'Connected to cloud',cloudOffline:'Local mode',cloudSaved:'Data saved to cloud',cloudLoaded:'Data loaded from cloud',cloudSaveError:'Could not save to cloud',cloudLoadError:'Could not load from cloud',authError:'Access error',checkEmail:'Account created. Check your email if Supabase asks for confirmation.',syncNow:'Save to cloud now',loadCloud:'Load from cloud',localWarning:'This is an experimental version. The stable local v32 remains untouched.',
+autoSaveOn:'Automatic saving enabled',savingCloud:'Saving to cloud...',cloudAutoSaved:'Changes saved to cloud',lastCloudSave:'Last cloud save',
 months:['January','February','March','April','May','June','July','August','September','October','November','December'],
 slots:["I don't know",'1st week of September','2nd week of September','3rd week of September','4th week of September','1st week of October','2nd week of October','3rd week of October','4th week of October','1st week of November','2nd week of November','3rd week of November','4th week of November']
 },
@@ -248,6 +257,7 @@ exportLight:'Eksportér let kopi uden fotos',storageInfo:'Omtrentlig datastørre
 specificPlant:'Bestemt plante',allPlants:'Hele sorten',
 safetyTitle:'Ansvarsmeddelelse',safetyText:'Minimumsalderen for at bruge dette værktøj er 21 år. Denne side fremmer ikke brugen af nogen form for substans. Det er et værktøj til registrering og organisering af arbejdskalenderen i køkkenhaven eller haven.',
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Testversion med bruger og gratis backend.',email:'Email',password:'Adgangskode',signIn:'Log ind',signUp:'Opret konto',signOut:'Log ud',cloudStatus:'Sky',cloudOnline:'Forbundet til skyen',cloudOffline:'Lokal tilstand',cloudSaved:'Data gemt i skyen',cloudLoaded:'Data indlæst fra skyen',cloudSaveError:'Kunne ikke gemme i skyen',cloudLoadError:'Kunne ikke indlæse fra skyen',authError:'Adgangsfejl',checkEmail:'Konto oprettet. Tjek din email hvis Supabase kræver bekræftelse.',syncNow:'Gem i skyen nu',loadCloud:'Indlæs fra skyen',localWarning:'Dette er en eksperimentel version. Den stabile lokale v32 bevares urørt.',
+autoSaveOn:'Automatisk lagring aktiveret',savingCloud:'Gemmer i skyen...',cloudAutoSaved:'Ændringer gemt i skyen',lastCloudSave:'Sidst gemt i skyen',
 months:['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'],
 slots:['Ved ikke','1. uge i september','2. uge i september','3. uge i september','4. uge i september','1. uge i oktober','2. uge i oktober','3. uge i oktober','4. uge i oktober','1. uge i november','2. uge i november','3. uge i november','4. uge i november']
 }
@@ -378,6 +388,14 @@ function updateCloudUi(){
   const b=document.getElementById('cloudBadge'), t=document.getElementById('cloudBadgeText');
   if(t)t.textContent=cloudUser?L('cloudOnline'):L('cloudOffline');
   if(b)b.className='cloudBadge '+(cloudUser?'':'off');
+  const bs=document.getElementById('cloudBackupStatus');if(bs)bs.textContent=cloudUser?L('cloudOnline'):L('cloudOffline');
+  const line=document.getElementById('cloudSaveLine');
+  if(line){
+    if(!cloudUser) line.textContent=L('cloudOffline');
+    else if(cloudSaveState==='saving') line.textContent=L('savingCloud');
+    else if(cloudLastSaved) line.textContent=`${L('lastCloudSave')}: ${new Date(cloudLastSaved).toLocaleString(locale())}`;
+    else line.textContent=L('autoSaveOn');
+  }
 }
 async function signUpCloud(){
   if(!sb){setAuthMsg('Supabase no està carregat');return}
@@ -424,19 +442,21 @@ async function loadCloudData(showToast=true){
 async function saveCloudData(showToast=false){
   if(!sb||!cloudUser||cloudSaving)return false;
   try{
-    cloudSaving=true;
-    const payload={user_id:cloudUser.id,data:data,updated_at:new Date().toISOString()};
+    cloudSaving=true;cloudSaveState='saving';updateCloudUi();
+    const now=new Date().toISOString();
+    const payload={user_id:cloudUser.id,data:data,updated_at:now};
     const {error}=await sb.from('og_calendar_data').upsert(payload,{onConflict:'user_id'});
     if(error)throw error;
+    cloudLastSaved=now;cloudSaveState='saved';updateCloudUi();
     if(showToast)toast(L('cloudSaved'));
     return true;
-  }catch(err){console.error(err);if(showToast)toast(L('cloudSaveError'));return false}
-  finally{cloudSaving=false}
+  }catch(err){console.error(err);cloudSaveState='error';updateCloudUi();if(showToast)toast(L('cloudSaveError'));return false}
+  finally{cloudSaving=false;updateCloudUi()}
 }
 function scheduleCloudSave(){
   if(!cloudUser)return;
   clearTimeout(cloudSaveTimer);
-  cloudSaveTimer=setTimeout(()=>saveCloudData(false),900);
+  cloudSaveTimer=setTimeout(()=>saveCloudData(false),700);
 }
 async function saveCloudManual(){await save();await saveCloudData(true)}
 async function loadCloudManual(){await loadCloudData(true)}
@@ -580,7 +600,7 @@ function downloadJson(obj,name,msg){
   toast(msg);
 }
 
-function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));document.getElementById('backup').innerHTML=`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme()}
+function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="row"><button class="btn secondary full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" onclick="signOutCloud()">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi()}
 function exportData(){downloadJson(data,`calendari-cultiu-${data.season}.json`,L('exported'))}
 function exportLightData(){downloadJson(cloneWithoutPhotos(data),`calendari-cultiu-${data.season}-sense-fotos.json`,L('photosRemoved'))}
 function importData(ev){
