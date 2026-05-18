@@ -561,28 +561,48 @@ async function signInCloud(){
     console.error(err);setAuthMsg(L('authError')+': '+(err.message||err),'err');
   }finally{if(btn)btn.disabled=false}
 }
+
+function bindCloudButtons(){
+  const out=document.getElementById('cloudSignOutBtn');
+  if(out){
+    out.onclick=async function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      await signOutCloud();
+      return false;
+    };
+  }
+}
+
 async function signOutCloud(){
   manualSignOut=true;
-  setAuthMsg(L('signingOut'));
+  cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
+  try{setAuthMsg(L('signingOut'))}catch(e){}
   try{
-    if(sb)await sb.auth.signOut({scope:'local'});
-  }catch(e){
-    console.error(e);
-    try{ if(sb)await sb.auth.signOut(); }catch(_e){}
+    if(sb && sb.auth) await sb.auth.signOut({scope:'global'});
+  }catch(e1){
+    console.error('global signout failed',e1);
+    try{ if(sb && sb.auth) await sb.auth.signOut(); }catch(e2){console.error('fallback signout failed',e2)}
   }
   try{
-    localStorage.removeItem('og-calendar-cloud-auth');
-    sessionStorage.removeItem('og-calendar-cloud-auth');
-    Object.keys(localStorage).forEach(k=>{if(k.includes('supabase')||k.includes('sb-'))localStorage.removeItem(k)});
-    Object.keys(sessionStorage).forEach(k=>{if(k.includes('supabase')||k.includes('sb-'))sessionStorage.removeItem(k)});
-  }catch(e){console.error(e)}
-  cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)keys.push(k)}
+    keys.forEach(k=>{
+      if(k==='og-calendar-cloud-auth'||k.includes('supabase')||k.startsWith('sb-')||k.includes('auth-token'))localStorage.removeItem(k);
+    });
+    const skeys=[];
+    for(let i=0;i<sessionStorage.length;i++){const k=sessionStorage.key(i);if(k)skeys.push(k)}
+    skeys.forEach(k=>{
+      if(k==='og-calendar-cloud-auth'||k.includes('supabase')||k.startsWith('sb-')||k.includes('auth-token'))sessionStorage.removeItem(k);
+    });
+  }catch(e){console.error('storage cleanup failed',e)}
   updateCloudUi();
   showLogin();
   setAuthMsg(L('signedOutOk'),'ok');
   toast(L('signedOutOk'));
-  setTimeout(()=>{manualSignOut=false},1200);
+  setTimeout(()=>{manualSignOut=false},1800);
 }
+window.signOutCloud=signOutCloud;
 async function loadCloudData(showToast=true){
   if(!sb||!cloudUser)return false;
   try{
@@ -784,7 +804,7 @@ function downloadJson(obj,name,msg){
   toast(msg);
 }
 
-function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" type="button" onclick="signOutCloud()">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi()}
+function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" type="button" id="cloudSignOutBtn">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi();bindCloudButtons()}
 function exportData(){downloadJson(data,`calendari-cultiu-${data.season}.json`,L('exported'))}
 function exportLightData(){downloadJson(cloneWithoutPhotos(data),`calendari-cultiu-${data.season}-sense-fotos.json`,L('photosRemoved'))}
 function importData(ev){
