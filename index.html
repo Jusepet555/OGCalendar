@@ -118,6 +118,10 @@ body.dark .authMsgBox{background:#3b2f12;border-color:#6b551b;color:#ffe6a3}
 body.dark .authMsgBox.ok{background:#14351b;border-color:#346f3b;color:#dff5df}
 body.dark .authMsgBox.err{background:#3a1717;border-color:#7a2b2b;color:#ffd0d0}
 
+
+.cloudDebugLine{margin-top:8px;padding:8px;border-radius:10px;background:#f6f7f6;border:1px solid #d9ddd9;font-size:.76rem;line-height:1.25;word-break:break-word}
+body.dark .cloudDebugLine{background:#111a13;border-color:#2f4632;color:#dcebdc}
+
 </style>
 </head>
 <body>
@@ -193,6 +197,7 @@ let cloudSaving=false;
 let cloudSaveTimer=null;
 let cloudLastSaved='';
 let cloudSaveState='';
+let cloudLastError='';
 
 
 const KEY='og_calendar_data_v30', DB_NAME='og_calendar_db_v29', DB_STORE='appdata', DB_ID='main', OLD=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','cultiu_calendari_v1','og_calendar_data_v17','og_calendar_data_v19'], CLEAN_KEYS=['og_calendar_data_v28','og_calendar_data_v27','og_calendar_data_v25','og_calendar_data_v24','og_calendar_data_v23','og_calendar_data_v22','og_calendar_data_v21','og_calendar_data_v20','og_calendar_data_v19','og_calendar_data_v17','cultiu_calendari_v1'], LANG_KEY='og_calendar_lang_v1', DARK_KEY='og_calendar_dark_v1';
@@ -223,6 +228,7 @@ cloudTitle:'OG Calendar Cloud',cloudIntro:'Versió de prova amb usuari i backend
 autoSaveOn:'Guardat automàtic activat',savingCloud:'Guardant al núvol...',cloudAutoSaved:'Canvis guardats al núvol',lastCloudSave:'Últim guardat al núvol',
 loginRequired:'Has d’entrar amb usuari i contrasenya per accedir a la versió Cloud.',
 creatingAccount:'Creant compte...',signingIn:'Entrant...',accountCreatedNowSignIn:'Compte creat. Ara prova d’entrar amb el mateix email i contrasenya.',enterEmailPass:'Escriu email i contrasenya.',supabaseNotLoaded:'No s’ha carregat Supabase. Revisa la connexió a internet.',
+cloudErrorDetail:'Error del núvol',manualSaveTest:'Prova de guardat manual',savedButCheck:'Guardat enviat al núvol. Revisa carregant de nou.',
 months:['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'],
 slots:['No ho sé','1a setmana de setembre','2a setmana de setembre','3a setmana de setembre','4a setmana de setembre',"1a setmana d'octubre","2a setmana d'octubre","3a setmana d'octubre","4a setmana d'octubre",'1a setmana de novembre','2a setmana de novembre','3a setmana de novembre','4a setmana de novembre']
 },
@@ -247,6 +253,7 @@ cloudTitle:'OG Calendar Cloud',cloudIntro:'Versión de prueba con usuario y back
 autoSaveOn:'Guardado automático activado',savingCloud:'Guardando en la nube...',cloudAutoSaved:'Cambios guardados en la nube',lastCloudSave:'Último guardado en la nube',
 loginRequired:'Debes entrar con usuario y contraseña para acceder a la versión Cloud.',
 creatingAccount:'Creando cuenta...',signingIn:'Entrando...',accountCreatedNowSignIn:'Cuenta creada. Ahora prueba a entrar con el mismo email y contraseña.',enterEmailPass:'Escribe email y contraseña.',supabaseNotLoaded:'No se ha cargado Supabase. Revisa la conexión a internet.',
+cloudErrorDetail:'Error de la nube',manualSaveTest:'Prueba de guardado manual',savedButCheck:'Guardado enviado a la nube. Comprueba cargando de nuevo.',
 months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 slots:['No lo sé','1.ª semana de septiembre','2.ª semana de septiembre','3.ª semana de septiembre','4.ª semana de septiembre','1.ª semana de octubre','2.ª semana de octubre','3.ª semana de octubre','4.ª semana de octubre','1.ª semana de noviembre','2.ª semana de noviembre','3.ª semana de noviembre','4.ª semana de noviembre']
 },
@@ -271,6 +278,7 @@ cloudTitle:'OG Calendar Cloud',cloudIntro:'Test version with user account and fr
 autoSaveOn:'Automatic saving enabled',savingCloud:'Saving to cloud...',cloudAutoSaved:'Changes saved to cloud',lastCloudSave:'Last cloud save',
 loginRequired:'You must sign in with email and password to access the Cloud version.',
 creatingAccount:'Creating account...',signingIn:'Signing in...',accountCreatedNowSignIn:'Account created. Now try signing in with the same email and password.',enterEmailPass:'Enter email and password.',supabaseNotLoaded:'Supabase did not load. Check your internet connection.',
+cloudErrorDetail:'Cloud error',manualSaveTest:'Manual save test',savedButCheck:'Save sent to cloud. Check by loading again.',
 months:['January','February','March','April','May','June','July','August','September','October','November','December'],
 slots:["I don't know",'1st week of September','2nd week of September','3rd week of September','4th week of September','1st week of October','2nd week of October','3rd week of October','4th week of October','1st week of November','2nd week of November','3rd week of November','4th week of November']
 },
@@ -295,6 +303,7 @@ cloudTitle:'OG Calendar Cloud',cloudIntro:'Testversion med bruger og gratis back
 autoSaveOn:'Automatisk lagring aktiveret',savingCloud:'Gemmer i skyen...',cloudAutoSaved:'Ændringer gemt i skyen',lastCloudSave:'Sidst gemt i skyen',
 loginRequired:'Du skal logge ind med email og adgangskode for at få adgang til Cloud-versionen.',
 creatingAccount:'Opretter konto...',signingIn:'Logger ind...',accountCreatedNowSignIn:'Konto oprettet. Prøv nu at logge ind med samme email og adgangskode.',enterEmailPass:'Skriv email og adgangskode.',supabaseNotLoaded:'Supabase blev ikke indlæst. Tjek internetforbindelsen.',
+cloudErrorDetail:'Skyfejl',manualSaveTest:'Manuel gemmetest',savedButCheck:'Gem sendt til skyen. Tjek ved at indlæse igen.',
 months:['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'],
 slots:['Ved ikke','1. uge i september','2. uge i september','3. uge i september','4. uge i september','1. uge i oktober','2. uge i oktober','3. uge i oktober','4. uge i oktober','1. uge i november','2. uge i november','3. uge i november','4. uge i november']
 }
@@ -443,8 +452,14 @@ function updateCloudUi(){
   if(line){
     if(!cloudUser) line.textContent=L('cloudOffline');
     else if(cloudSaveState==='saving') line.textContent=L('savingCloud');
+    else if(cloudSaveState==='error') line.textContent=L('cloudSaveError');
     else if(cloudLastSaved) line.textContent=`${L('lastCloudSave')}: ${new Date(cloudLastSaved).toLocaleString(locale())}`;
     else line.textContent=L('autoSaveOn');
+  }
+  const dbg=document.getElementById('cloudDebugLine');
+  if(dbg){
+    const uid=cloudUser?cloudUser.id.slice(0,8)+'…':'-';
+    dbg.textContent=cloudLastError?`${L('cloudErrorDetail')}: ${cloudLastError}`:`Usuari: ${uid} · estat: ${cloudSaveState||'preparat'}`;
   }
 }
 async function signUpCloud(){
@@ -500,7 +515,7 @@ async function loadCloudData(showToast=true){
     if(error)throw error;
     if(row&&row.data){
       data=normalizeImportedData(row.data);
-      await save();
+      await save(false);
       renderAll();
       if(showToast)toast(L('cloudLoaded'));
       return true;
@@ -509,25 +524,35 @@ async function loadCloudData(showToast=true){
   }catch(err){console.error(err);if(showToast)toast(L('cloudLoadError'));return false}
 }
 async function saveCloudData(showToast=false){
-  if(!sb||!cloudUser||cloudSaving)return false;
+  if(!sb){cloudLastError='Supabase no carregat';cloudSaveState='error';updateCloudUi();return false}
+  if(!cloudUser){cloudLastError='Sense usuari';cloudSaveState='error';updateCloudUi();return false}
+  if(cloudSaving)return false;
   try{
-    cloudSaving=true;cloudSaveState='saving';updateCloudUi();
+    cloudSaving=true;cloudSaveState='saving';cloudLastError='';updateCloudUi();
     const now=new Date().toISOString();
-    const payload={user_id:cloudUser.id,data:data,updated_at:now};
-    const {error}=await sb.from('og_calendar_data').upsert(payload,{onConflict:'user_id'});
+    const payload={user_id:cloudUser.id,data:JSON.parse(JSON.stringify(data)),updated_at:now};
+    let {error}=await sb.from('og_calendar_data').upsert(payload,{onConflict:'user_id'});
     if(error)throw error;
-    cloudLastSaved=now;cloudSaveState='saved';updateCloudUi();
+    cloudLastSaved=now;cloudSaveState='saved';cloudLastError='';updateCloudUi();
     if(showToast)toast(L('cloudSaved'));
     return true;
-  }catch(err){console.error(err);cloudSaveState='error';updateCloudUi();if(showToast)toast(L('cloudSaveError'));return false}
-  finally{cloudSaving=false;updateCloudUi()}
+  }catch(err){
+    console.error('Supabase save error',err);
+    cloudSaveState='error';
+    cloudLastError=(err && (err.message||err.details||err.hint||err.code)) ? [err.message,err.details,err.hint,err.code].filter(Boolean).join(' · ') : String(err);
+    updateCloudUi();
+    if(showToast)toast(`${L('cloudSaveError')}: ${cloudLastError}`);
+    return false;
+  }finally{
+    cloudSaving=false;updateCloudUi();
+  }
 }
 function scheduleCloudSave(){
   if(!cloudUser)return;
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer=setTimeout(()=>saveCloudData(false),700);
 }
-async function saveCloudManual(){await save();await saveCloudData(true)}
+async function saveCloudManual(){await save(false);const ok=await saveCloudData(true);if(ok)toast(L('savedButCheck'))}
 async function loadCloudManual(){await loadCloudData(true)}
 async function initCloudSession(){
   if(!sb)return;
@@ -552,11 +577,12 @@ async function initData(){
   }
   renderAll();
 }
-async function save(){
-  data.updatedAt=new Date().toISOString();
-  cleanupOldStorage();
+async function save(syncCloud=true){
   try{
+    data.updatedAt=new Date().toISOString();
+    cleanupOldStorage();
     await dbSet(data);
+    if(syncCloud)scheduleCloudSave();
   }catch(e){
     console.error(e);
     throw Error('No he pogut guardar les dades a IndexedDB. Prova amb un navegador actualitzat.')
@@ -669,7 +695,7 @@ function downloadJson(obj,name,msg){
   toast(msg);
 }
 
-function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="row"><button class="btn secondary full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" onclick="signOutCloud()">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi()}
+function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" onclick="signOutCloud()">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi()}
 function exportData(){downloadJson(data,`calendari-cultiu-${data.season}.json`,L('exported'))}
 function exportLightData(){downloadJson(cloneWithoutPhotos(data),`calendari-cultiu-${data.season}-sense-fotos.json`,L('photosRemoved'))}
 function importData(ev){
@@ -680,7 +706,7 @@ function importData(ev){
       const txt=String(e.target.result||'').trim();
       if(!txt)throw Error('Arxiu buit');
       data=normalizeImportedData(JSON.parse(txt));
-      await save();
+      await save(false);
       renderAll();
       goTab('today');
       toast(L('imported',{v:data.varieties.length,l:data.logs.length}));
