@@ -110,6 +110,14 @@ body.dark .cloudSaveLine{color:#c6d7c8}
 .authRequired{font-size:.78rem;font-weight:800;color:#1b5e20;background:#e8f5e9;border:1px solid #b8dfba;border-radius:12px;padding:8px;margin:8px 0 10px}
 body.dark .authRequired{background:#14351b;color:#dff5df;border-color:#346f3b}
 
+
+.authMsgBox{margin-top:10px;padding:9px 10px;border-radius:12px;background:#fff8e1;border:1px solid #ffd36b;color:#503500;font-weight:800;font-size:.82rem;min-height:18px}
+.authMsgBox.ok{background:#e8f5e9;border-color:#9ed1a1;color:#1b5e20}
+.authMsgBox.err{background:#ffebee;border-color:#ef9a9a;color:#7f1d1d}
+body.dark .authMsgBox{background:#3b2f12;border-color:#6b551b;color:#ffe6a3}
+body.dark .authMsgBox.ok{background:#14351b;border-color:#346f3b;color:#dff5df}
+body.dark .authMsgBox.err{background:#3a1717;border-color:#7a2b2b;color:#ffd0d0}
+
 </style>
 </head>
 <body>
@@ -147,7 +155,7 @@ body.dark .authRequired{background:#14351b;color:#dff5df;border-color:#346f3b}
     <button class="btn full" id="signInBtn" type="button" onclick="signInCloud()">Entrar</button>
     <button class="btn secondary full" id="signUpBtn" type="button" onclick="signUpCloud()">Crear compte</button>
   </div>
-  <div class="tiny muted" id="authMsg" style="margin-top:8px"></div>
+  <div class="authMsgBox" id="authMsg"></div>
 </div>
 
 <button id="enterBtn" class="btn hidden" type="button" style="display:none">Accedir</button>
@@ -214,6 +222,7 @@ safetyTitle:'Avís de responsabilitat',safetyText:'L’edat mínima per utilitza
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Versió de prova amb usuari i backend gratuït.',email:'Email',password:'Contrasenya',signIn:'Entrar',signUp:'Crear compte',signOut:'Sortir',cloudStatus:'Núvol',cloudOnline:'Connectat al núvol',cloudOffline:'Mode local',cloudSaved:'Dades guardades al núvol',cloudLoaded:'Dades carregades del núvol',cloudSaveError:'No he pogut guardar al núvol',cloudLoadError:'No he pogut carregar del núvol',authError:'Error d’accés',checkEmail:'Compte creat. Revisa el correu si Supabase demana confirmació.',syncNow:'Guardar al núvol ara',loadCloud:'Carregar del núvol',localWarning:'Aquesta és una versió experimental. La v32 local bona es conserva intacta.',
 autoSaveOn:'Guardat automàtic activat',savingCloud:'Guardant al núvol...',cloudAutoSaved:'Canvis guardats al núvol',lastCloudSave:'Últim guardat al núvol',
 loginRequired:'Has d’entrar amb usuari i contrasenya per accedir a la versió Cloud.',
+creatingAccount:'Creant compte...',signingIn:'Entrant...',accountCreatedNowSignIn:'Compte creat. Ara prova d’entrar amb el mateix email i contrasenya.',enterEmailPass:'Escriu email i contrasenya.',supabaseNotLoaded:'No s’ha carregat Supabase. Revisa la connexió a internet.',
 months:['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'],
 slots:['No ho sé','1a setmana de setembre','2a setmana de setembre','3a setmana de setembre','4a setmana de setembre',"1a setmana d'octubre","2a setmana d'octubre","3a setmana d'octubre","4a setmana d'octubre",'1a setmana de novembre','2a setmana de novembre','3a setmana de novembre','4a setmana de novembre']
 },
@@ -237,6 +246,7 @@ safetyTitle:'Aviso de responsabilidad',safetyText:'La edad mínima para utilizar
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Versión de prueba con usuario y backend gratuito.',email:'Email',password:'Contraseña',signIn:'Entrar',signUp:'Crear cuenta',signOut:'Salir',cloudStatus:'Nube',cloudOnline:'Conectado a la nube',cloudOffline:'Modo local',cloudSaved:'Datos guardados en la nube',cloudLoaded:'Datos cargados de la nube',cloudSaveError:'No he podido guardar en la nube',cloudLoadError:'No he podido cargar de la nube',authError:'Error de acceso',checkEmail:'Cuenta creada. Revisa el correo si Supabase pide confirmación.',syncNow:'Guardar en la nube ahora',loadCloud:'Cargar de la nube',localWarning:'Esta es una versión experimental. La v32 local buena se conserva intacta.',
 autoSaveOn:'Guardado automático activado',savingCloud:'Guardando en la nube...',cloudAutoSaved:'Cambios guardados en la nube',lastCloudSave:'Último guardado en la nube',
 loginRequired:'Debes entrar con usuario y contraseña para acceder a la versión Cloud.',
+creatingAccount:'Creando cuenta...',signingIn:'Entrando...',accountCreatedNowSignIn:'Cuenta creada. Ahora prueba a entrar con el mismo email y contraseña.',enterEmailPass:'Escribe email y contraseña.',supabaseNotLoaded:'No se ha cargado Supabase. Revisa la conexión a internet.',
 months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 slots:['No lo sé','1.ª semana de septiembre','2.ª semana de septiembre','3.ª semana de septiembre','4.ª semana de septiembre','1.ª semana de octubre','2.ª semana de octubre','3.ª semana de octubre','4.ª semana de octubre','1.ª semana de noviembre','2.ª semana de noviembre','3.ª semana de noviembre','4.ª semana de noviembre']
 },
@@ -260,6 +270,7 @@ safetyTitle:'Responsibility notice',safetyText:'The minimum age to use this tool
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Test version with user account and free backend.',email:'Email',password:'Password',signIn:'Sign in',signUp:'Create account',signOut:'Sign out',cloudStatus:'Cloud',cloudOnline:'Connected to cloud',cloudOffline:'Local mode',cloudSaved:'Data saved to cloud',cloudLoaded:'Data loaded from cloud',cloudSaveError:'Could not save to cloud',cloudLoadError:'Could not load from cloud',authError:'Access error',checkEmail:'Account created. Check your email if Supabase asks for confirmation.',syncNow:'Save to cloud now',loadCloud:'Load from cloud',localWarning:'This is an experimental version. The stable local v32 remains untouched.',
 autoSaveOn:'Automatic saving enabled',savingCloud:'Saving to cloud...',cloudAutoSaved:'Changes saved to cloud',lastCloudSave:'Last cloud save',
 loginRequired:'You must sign in with email and password to access the Cloud version.',
+creatingAccount:'Creating account...',signingIn:'Signing in...',accountCreatedNowSignIn:'Account created. Now try signing in with the same email and password.',enterEmailPass:'Enter email and password.',supabaseNotLoaded:'Supabase did not load. Check your internet connection.',
 months:['January','February','March','April','May','June','July','August','September','October','November','December'],
 slots:["I don't know",'1st week of September','2nd week of September','3rd week of September','4th week of September','1st week of October','2nd week of October','3rd week of October','4th week of October','1st week of November','2nd week of November','3rd week of November','4th week of November']
 },
@@ -283,6 +294,7 @@ safetyTitle:'Ansvarsmeddelelse',safetyText:'Minimumsalderen for at bruge dette v
 cloudTitle:'OG Calendar Cloud',cloudIntro:'Testversion med bruger og gratis backend.',email:'Email',password:'Adgangskode',signIn:'Log ind',signUp:'Opret konto',signOut:'Log ud',cloudStatus:'Sky',cloudOnline:'Forbundet til skyen',cloudOffline:'Lokal tilstand',cloudSaved:'Data gemt i skyen',cloudLoaded:'Data indlæst fra skyen',cloudSaveError:'Kunne ikke gemme i skyen',cloudLoadError:'Kunne ikke indlæse fra skyen',authError:'Adgangsfejl',checkEmail:'Konto oprettet. Tjek din email hvis Supabase kræver bekræftelse.',syncNow:'Gem i skyen nu',loadCloud:'Indlæs fra skyen',localWarning:'Dette er en eksperimentel version. Den stabile lokale v32 bevares urørt.',
 autoSaveOn:'Automatisk lagring aktiveret',savingCloud:'Gemmer i skyen...',cloudAutoSaved:'Ændringer gemt i skyen',lastCloudSave:'Sidst gemt i skyen',
 loginRequired:'Du skal logge ind med email og adgangskode for at få adgang til Cloud-versionen.',
+creatingAccount:'Opretter konto...',signingIn:'Logger ind...',accountCreatedNowSignIn:'Konto oprettet. Prøv nu at logge ind med samme email og adgangskode.',enterEmailPass:'Skriv email og adgangskode.',supabaseNotLoaded:'Supabase blev ikke indlæst. Tjek internetforbindelsen.',
 months:['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'],
 slots:['Ved ikke','1. uge i september','2. uge i september','3. uge i september','4. uge i september','1. uge i oktober','2. uge i oktober','3. uge i oktober','4. uge i oktober','1. uge i november','2. uge i november','3. uge i november','4. uge i november']
 }
@@ -418,7 +430,10 @@ function showLogin(){
   if(w)w.classList.remove('hidden');
   setAuthMsg('');
 }
-function setAuthMsg(msg){const el=document.getElementById('authMsg');if(el)el.textContent=msg||''}
+function setAuthMsg(msg,type=''){
+  const el=document.getElementById('authMsg');
+  if(el){el.textContent=msg||'';el.className='authMsgBox '+(type||'')}
+}
 function updateCloudUi(){
   const b=document.getElementById('cloudBadge'), t=document.getElementById('cloudBadgeText');
   if(t)t.textContent=cloudUser?L('cloudOnline'):L('cloudOffline');
@@ -433,24 +448,43 @@ function updateCloudUi(){
   }
 }
 async function signUpCloud(){
-  if(!sb){setAuthMsg('Supabase no està carregat');return}
-  const email=val('authEmail'), password=val('authPassword');
-  if(!email||!password){setAuthMsg(L('email')+' + '+L('password'));return}
-  const {data:res,error}=await sb.auth.signUp({email,password});
-  if(error){setAuthMsg(L('authError')+': '+error.message);return}
-  setAuthMsg(L('checkEmail'));
-  if(res && res.session && res.user){cloudUser=res.user;cloudReady=true;updateCloudUi();await saveCloudManual();enterApp();}
+  if(!sb){setAuthMsg(L('supabaseNotLoaded'),'err');return}
+  const email=val('authEmail').trim(), password=val('authPassword');
+  if(!email||!password){setAuthMsg(L('enterEmailPass'),'err');return}
+  setAuthMsg(L('creatingAccount'));
+  const btn=document.getElementById('signUpBtn'); if(btn)btn.disabled=true;
+  try{
+    const {data:res,error}=await sb.auth.signUp({email,password});
+    if(error){setAuthMsg(L('authError')+': '+error.message,'err');return}
+    if(res && res.session && res.user){
+      cloudUser=res.user;cloudReady=true;updateCloudUi();
+      await saveCloudManual();
+      setAuthMsg(L('cloudOnline'),'ok');
+      enterApp();
+      return;
+    }
+    setAuthMsg(L('accountCreatedNowSignIn'),'ok');
+  }catch(err){
+    console.error(err);setAuthMsg(L('authError')+': '+(err.message||err),'err');
+  }finally{if(btn)btn.disabled=false}
 }
 async function signInCloud(){
-  if(!sb){setAuthMsg('Supabase no està carregat');return}
-  const email=val('authEmail'), password=val('authPassword');
-  if(!email||!password){setAuthMsg(L('email')+' + '+L('password'));return}
-  const {data:res,error}=await sb.auth.signInWithPassword({email,password});
-  if(error){setAuthMsg(L('authError')+': '+error.message);return}
-  cloudUser=res.user;cloudReady=true;updateCloudUi();
-  const loaded=await loadCloudData(false);
-  if(!loaded)await saveCloudData(false);
-  renderAll();enterApp();toast(L('cloudOnline'));
+  if(!sb){setAuthMsg(L('supabaseNotLoaded'),'err');return}
+  const email=val('authEmail').trim(), password=val('authPassword');
+  if(!email||!password){setAuthMsg(L('enterEmailPass'),'err');return}
+  setAuthMsg(L('signingIn'));
+  const btn=document.getElementById('signInBtn'); if(btn)btn.disabled=true;
+  try{
+    const {data:res,error}=await sb.auth.signInWithPassword({email,password});
+    if(error){setAuthMsg(L('authError')+': '+error.message,'err');return}
+    if(!res || !res.user){setAuthMsg(L('authError'),'err');return}
+    cloudUser=res.user;cloudReady=true;updateCloudUi();
+    const loaded=await loadCloudData(false);
+    if(!loaded)await saveCloudData(false);
+    renderAll();enterApp();toast(L('cloudOnline'));
+  }catch(err){
+    console.error(err);setAuthMsg(L('authError')+': '+(err.message||err),'err');
+  }finally{if(btn)btn.disabled=false}
 }
 async function signOutCloud(){
   try{ if(sb)await sb.auth.signOut(); }catch(e){console.error(e)}
