@@ -212,6 +212,32 @@ const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON
 }):null;
 const FORCE_LOGIN_KEY='og-calendar-force-login';
 let cloudUser=null;
+
+function emptyCloudData(){
+  const y=new Date().getFullYear();
+  return {
+    season:y,
+    varieties:[],
+    logs:[],
+    settings:{lang:data&&data.settings&&data.settings.lang?data.settings.lang:'ca',dark:!!(data&&data.settings&&data.settings.dark)},
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  };
+}
+function userScopedKey(uid){return 'og_calendar_user_data_'+uid}
+function saveUserLocalCopy(){
+  try{
+    if(cloudUser&&cloudUser.id)localStorage.setItem(userScopedKey(cloudUser.id),JSON.stringify(data));
+  }catch(e){console.error('user local save failed',e)}
+}
+function loadUserLocalCopy(uid){
+  try{
+    const raw=localStorage.getItem(userScopedKey(uid));
+    if(raw)return normalizeImportedData(JSON.parse(raw));
+  }catch(e){console.error('user local load failed',e)}
+  return null;
+}
+
 let cloudReady=false;
 let cloudSaving=false;
 let cloudSaveTimer=null;
@@ -226,7 +252,13 @@ if(sb){
     if(session&&session.user){
       cloudUser=session.user;cloudReady=true;updateCloudUi();
       if(document.getElementById('welcome') && !document.getElementById('welcome').classList.contains('hidden')){
-        await loadCloudData(false);
+        const loaded=await loadCloudData(false);
+        if(!loaded){
+          const localForUser=loadUserLocalCopy(cloudUser.id);
+          data=localForUser||emptyCloudData();
+          await save(false);
+          await saveCloudData(false);
+        }
         renderAll();
         enterApp();
       }
@@ -277,6 +309,7 @@ sessionRestored:'Sessió recuperada automàticament',sessionTip:'Si no cliques S
 checkingSession:'Comprovant sessió guardada...',
 signedOutOk:'Sessió tancada correctament',signingOut:'Tancant sessió...',
 logoutReloading:'Sortint i reiniciant la sessió...',
+newUserEmpty:'Aquest usuari encara no tenia dades al núvol. Comença amb un calendari buit.',userDataIsolated:'Dades separades per usuari.',
 months:['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'],
 slots:['No ho sé','1a setmana de setembre','2a setmana de setembre','3a setmana de setembre','4a setmana de setembre',"1a setmana d'octubre","2a setmana d'octubre","3a setmana d'octubre","4a setmana d'octubre",'1a setmana de novembre','2a setmana de novembre','3a setmana de novembre','4a setmana de novembre']
 },
@@ -307,6 +340,7 @@ sessionRestored:'Sesión recuperada automáticamente',sessionTip:'Si no pulsas S
 checkingSession:'Comprobando sesión guardada...',
 signedOutOk:'Sesión cerrada correctamente',signingOut:'Cerrando sesión...',
 logoutReloading:'Saliendo y reiniciando la sesión...',
+newUserEmpty:'Este usuario todavía no tenía datos en la nube. Empieza con un calendario vacío.',userDataIsolated:'Datos separados por usuario.',
 months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 slots:['No lo sé','1.ª semana de septiembre','2.ª semana de septiembre','3.ª semana de septiembre','4.ª semana de septiembre','1.ª semana de octubre','2.ª semana de octubre','3.ª semana de octubre','4.ª semana de octubre','1.ª semana de noviembre','2.ª semana de noviembre','3.ª semana de noviembre','4.ª semana de noviembre']
 },
@@ -337,6 +371,7 @@ sessionRestored:'Session restored automatically',sessionTip:'If you do not tap S
 checkingSession:'Checking saved session...',
 signedOutOk:'Session signed out successfully',signingOut:'Signing out...',
 logoutReloading:'Signing out and restarting session...',
+newUserEmpty:'This user had no cloud data yet. Starting with an empty calendar.',userDataIsolated:'Data separated by user.',
 months:['January','February','March','April','May','June','July','August','September','October','November','December'],
 slots:["I don't know",'1st week of September','2nd week of September','3rd week of September','4th week of September','1st week of October','2nd week of October','3rd week of October','4th week of October','1st week of November','2nd week of November','3rd week of November','4th week of November']
 },
@@ -367,6 +402,7 @@ sessionRestored:'Session gendannet automatisk',sessionTip:'Hvis du ikke trykker 
 checkingSession:'Kontrollerer gemt session...',
 signedOutOk:'Session lukket korrekt',signingOut:'Logger ud...',
 logoutReloading:'Logger ud og genstarter session...',
+newUserEmpty:'Denne bruger havde endnu ingen data i skyen. Starter med en tom kalender.',userDataIsolated:'Data adskilt pr. bruger.',
 months:['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'],
 slots:['Ved ikke','1. uge i september','2. uge i september','3. uge i september','4. uge i september','1. uge i oktober','2. uge i oktober','3. uge i oktober','4. uge i oktober','1. uge i november','2. uge i november','3. uge i november','4. uge i november']
 }
@@ -544,8 +580,10 @@ async function signUpCloud(){
     if(error){setAuthMsg(L('authError')+': '+error.message,'err');return}
     if(res && res.session && res.user){
       cloudUser=res.user;cloudReady=true;updateCloudUi();
+      data=emptyCloudData();
+      await save(false);
       await saveCloudData(false);
-      setAuthMsg(L('cloudOnline'),'ok');
+      setAuthMsg(L('newUserEmpty'),'ok');
       renderAll();
       enterApp();
       return;
@@ -571,8 +609,11 @@ async function signInCloud(){
     setAuthMsg(L('loadingCloud'));
     const loaded=await loadCloudData(false);
     if(!loaded){
-      setAuthMsg(L('noCloudDataYet'),'ok');
+      const localForUser=loadUserLocalCopy(cloudUser.id);
+      data=localForUser||emptyCloudData();
+      await save(false);
       await saveCloudData(false);
+      setAuthMsg(localForUser?L('cloudAutoLoaded'):L('newUserEmpty'),'ok');
     }else{
       setAuthMsg(L('cloudAutoLoaded'),'ok');
     }
@@ -644,6 +685,7 @@ async function loadCloudData(showToast=true){
       if(row.updated_at)cloudLastSaved=row.updated_at;
       cloudSaveState='loaded';
       await save(false);
+      saveUserLocalCopy();
       renderAll();
       updateCloudUi();
       if(showToast)toast(L('cloudLoaded'));
@@ -711,7 +753,12 @@ async function initCloudSession(){
     if(user&&!manualSignOut&&!hardLoggedOut){
       cloudUser=user;cloudReady=true;cloudSaveState='loading';cloudLastError='';updateCloudUi();
       const loaded=await loadCloudData(false);
-      if(!loaded)await saveCloudData(false);
+      if(!loaded){
+        const localForUser=loadUserLocalCopy(cloudUser.id);
+        data=localForUser||emptyCloudData();
+        await save(false);
+        await saveCloudData(false);
+      }
       renderAll();
       setAuthMsg(L('sessionRestored'),'ok');
       enterApp();
@@ -743,6 +790,7 @@ async function save(syncCloud=true){
     data.updatedAt=new Date().toISOString();
     cleanupOldStorage();
     await dbSet(data);
+    saveUserLocalCopy();
     if(syncCloud)scheduleCloudSave();
   }catch(e){
     console.error(e);
