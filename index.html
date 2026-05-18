@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v23: v22 + miniatures Storage arreglades -->
+<!-- OG Calendar Cloud v24: diagnòstic miniatures Storage -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -134,6 +134,12 @@ body.logged-out .modal,
 body.logged-out #photoModal,
 body.logged-out #plantModal{display:none!important}
 body.logged-out #welcome{display:flex!important}
+
+
+.photoDiag{font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.25}
+.photoDiag.ok{color:var(--green)}
+.photoDiag.err{color:#ff8a80}
+.photoDiag.warn{color:var(--yellow)}
 
 </style>
 
@@ -867,18 +873,19 @@ function logHtml(l){
   let ps=photoDisplaySrc(l.photo);
   let isSt=isStoragePhotoObject(l.photo);
   let imgId='logPhoto_'+l.id;
-  let src=ps||'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
-  return`<div class="event ${c}"><div class="itemHead"><div><b>${fmt(l.date)}</b> · ${esc(vName(l.varietyId))}${l.plantId?`<div class="tiny muted">🌿 ${esc(pName(l.varietyId,l.plantId))}</div>`:''}<div class="tiny muted">${esc(tAction(l.type))}</div></div><span class="pill ${c}">${esc(aLabel(l.type))}</span></div>${l.note?`<div style="margin-top:8px">${esc(l.note)}</div>`:''}${l.photo?`<img class="photo" id="${imgId}" src="${src}" ${isSt?`data-storage-preview="1" data-kind="log" data-id1="${l.id}"`:''} onclick="openPhotoFromData('log','${l.id}')" alt="${L('photo')}">`:''}<div class="inlineBtns"><button class="btn small secondary" onclick="deleteLog('${l.id}')">${L('delete')}</button></div></div>`
+  let src=(isSt?'data:image/gif;base64,R0lGODlhAQABAAAAACw=':ps);
+  let diag=isSt?'Storage: pendent de carregar URL temporal':'';
+  return`<div class="event ${c}"><div class="itemHead"><div><b>${fmt(l.date)}</b> · ${esc(vName(l.varietyId))}${l.plantId?`<div class="tiny muted">🌿 ${esc(pName(l.varietyId,l.plantId))}</div>`:''}<div class="tiny muted">${esc(tAction(l.type))}</div></div><span class="pill ${c}">${esc(aLabel(l.type))}</span></div>${l.note?`<div style="margin-top:8px">${esc(l.note)}</div>`:''}${l.photo?`<img class="photo" id="${imgId}" src="${src}" ${isSt?`data-storage-preview="1" data-kind="log" data-id1="${l.id}"`:''} onclick="openPhotoFromData('log','${l.id}')" alt="${L('photo')}"><div id="${imgId}_diag" class="photoDiag ${isSt?'warn':''}">${diag}</div>`:''}<div class="inlineBtns"><button class="btn small secondary" onclick="deleteLog('${l.id}')">${L('delete')}</button></div></div>`
 }
 
-function renderToday(){let html=`<div class="card"><div class="big">${L('season')} ${data.season}</div><div class="muted">${L('seasonRange')} · ${data.varieties.length}/10 ${L('created')}</div></div>`;INTERNAL_TYPES.forEach(type=>{let arr=data.varieties.filter(v=>normType(v.type)===type);if(!arr.length)return;html+=`<div class="card"><div class="title">${tType(type)}</div><div style="height:10px"></div>${arr.map(v=>`<div class="item"><div class="itemHead"><div><div class="title">${esc(v.name)}</div><div class="tiny muted">${esc(v.brand||L('noBrand'))}</div>${plantCountBadge(v)}</div>${status(v)}</div><div style="margin-top:10px">${summary(v)}</div><div class="inlineBtns"><button class="btn small" onclick="quickLog('${v.id}')">${L('addRecord')}</button><button class="btn small secondary" onclick="goTab('varieties');editVariety('${v.id}')">${L('edit')}</button><button class="btn small secondary" onclick="openPlantsModal('${v.id}')">${L('viewPlants')}</button></div></div>`).join('')}</div>`});if(!data.varieties.length)html+=`<div class="card empty">${L('noVar')}</div>`;let rec=[...data.logs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);html+=`<div class="card"><div class="title">${L('recent')}</div>${rec.length?rec.map(logHtml).join(''):'<div class="empty">'+L('noLogs')+'</div>'}</div>`;document.getElementById('today').innerHTML=html;hydrateStoragePreviews(document.getElementById('today'))}
+function renderToday(){let html=`<div class="card"><div class="big">${L('season')} ${data.season}</div><div class="muted">${L('seasonRange')} · ${data.varieties.length}/10 ${L('created')}</div></div>`;INTERNAL_TYPES.forEach(type=>{let arr=data.varieties.filter(v=>normType(v.type)===type);if(!arr.length)return;html+=`<div class="card"><div class="title">${tType(type)}</div><div style="height:10px"></div>${arr.map(v=>`<div class="item"><div class="itemHead"><div><div class="title">${esc(v.name)}</div><div class="tiny muted">${esc(v.brand||L('noBrand'))}</div>${plantCountBadge(v)}</div>${status(v)}</div><div style="margin-top:10px">${summary(v)}</div><div class="inlineBtns"><button class="btn small" onclick="quickLog('${v.id}')">${L('addRecord')}</button><button class="btn small secondary" onclick="goTab('varieties');editVariety('${v.id}')">${L('edit')}</button><button class="btn small secondary" onclick="openPlantsModal('${v.id}')">${L('viewPlants')}</button></div></div>`).join('')}</div>`});if(!data.varieties.length)html+=`<div class="card empty">${L('noVar')}</div>`;let rec=[...data.logs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);html+=`<div class="card"><div class="title">${L('recent')}</div>${rec.length?rec.map(logHtml).join(''):'<div class="empty">'+L('noLogs')+'</div>'}</div>`;document.getElementById('today').innerHTML=html;hydrateStoragePreviewsDiagnostic(document.getElementById('today'))}
 function renderVarieties(editId='',show=false){let edit=editId?data.varieties.find(v=>v.id===editId):null, html=`<div class="card"><div class="itemHead"><div><div class="big">${L('varieties')}</div><div class="muted tiny">${data.varieties.length}/10 ${L('created2')}</div></div><button class="btn small" onclick="renderVarieties('',true)">${L('newVariety')}</button></div></div>`;if(show||edit){let cur=normType(edit?.type||'Fotoperiòdiques'), opts=INTERNAL_TYPES.map(x=>`<option value="${x}" ${cur===x?'selected':''}>${tType(x)}</option>`).join('');html+=`<div class="card"><div class="big">${edit?L('editVariety'):L('newVariety')}</div><input id="vId" type="hidden" value="${edit?.id||''}"><label>${L('name')}</label><input id="vName" value="${esc(edit?.name||'')}"><div class="row"><div><label>${L('brand')}</label><input id="vBrand" value="${esc(edit?.brand||'')}"></div><div><label>${L('type')}</label><select id="vType" onchange="toggleTypeFields()">${opts}</select></div></div><div class="row"><div><label>${L('plantCount')}</label><input id="vPlantCount" type="number" min="0" max="25" value="${ensurePlants(edit||{}).length||0}"></div><div><label>${L('germination')}</label><input id="vGerm" type="date" value="${edit?.germDate||''}"></div></div><div class="row"><div><label>${L('flowerStart')}</label><input id="vFlower" type="date" value="${edit?.flowerDate||''}"></div><div></div></div><div class="row"><div><label>${L('flowerTime')}</label><select id="vWeeks"><option value="">${L('dontKnow')}</option>${[7,8,9,10,11,12,13].map(n=>`<option value="${n}" ${String(edit?.brandWeeks||'')===String(n)?'selected':''}>${n} ${L('weeks')}</option>`).join('')}</select></div><div id="brandHarvestWrap" class="${cur==='Automàtiques'?'hidden':''}"><label>${L('outdoorHarvest')}</label><select id="vBrandHarvest">${HARVEST_SLOTS.map((x,i)=>`<option value="${x}" ${(edit?.brandHarvest||'')===x?'selected':''}>${I18N[LANG].slots[i]}</option>`).join('')}</select></div></div><label>${L('notes')}</label><textarea id="vNotes">${esc(edit?.notes||'')}</textarea><div class="inlineBtns"><button class="btn" onclick="saveVariety()">${L('saveVariety')}</button><button class="btn secondary" onclick="renderVarieties()">${L('cancel')}</button></div></div>`}html+=`<div class="card"><div class="title">${L('list')}</div><div style="height:10px"></div>${data.varieties.length?data.varieties.map(v=>`<div class="item"><div class="itemHead"><div><div class="title">${esc(v.name)}</div><div class="tiny muted">${L('type')}: ${esc(tType(v.type))} · ${L('germination')}: ${fmt(v.germDate)} · ${L('flowering')}: ${fmt(v.flowerDate)}</div>${plantCountBadge(v)}</div>${status(v)}</div><div style="margin-top:8px">${summary(v)}</div><div class="inlineBtns"><button class="btn small secondary" onclick="editVariety('${v.id}')">${L('edit')}</button><button class="btn small secondary" onclick="openPlantsModal('${v.id}')">${L('viewPlants')}</button><button class="btn small danger" onclick="deleteVariety('${v.id}')">${L('delete')}</button></div></div>`).join(''):'<div class="empty">'+L('noVar')+'</div>'}</div>`;document.getElementById('varieties').innerHTML=html;toggleTypeFields()}
 function toggleTypeFields(){let s=document.getElementById('vType'),w=document.getElementById('brandHarvestWrap');if(!s||!w)return;w.classList.toggle('hidden',normType(s.value)==='Automàtiques')}
 function val(i){return document.getElementById(i).value.trim()}
 async function saveVariety(){let vid=val('vId');if(!vid&&data.varieties.length>=10){toast(L('maxVar'));return}let name=val('vName');if(!name){toast(L('setName'));return}let type=normType(val('vType')), old=data.varieties.find(v=>v.id===vid)||{};let plants=normalizePlants(old.plants||[], Math.min(25,Math.max(0,Number(val('vPlantCount'))||0)));let obj={id:vid||id(),name,brand:val('vBrand'),type,germDate:val('vGerm'),flowerDate:val('vFlower'),brandWeeks:val('vWeeks'),brandHarvest:type==='Automàtiques'?'':val('vBrandHarvest'),notes:val('vNotes'),harvestReal:old.harvestReal||'',harvestMode:old.harvestMode||'',plants};if(vid)data.varieties=data.varieties.map(v=>v.id===vid?obj:v);else data.varieties.push(obj);await save();renderAll();goTab('today');toast(L('varSaved'))}
 function editVariety(vid){renderVarieties(vid,true);scrollTo(0,0)}
 async function deleteVariety(vid){if(!confirm(L('confirmDeleteVar')))return;data.varieties=data.varieties.filter(v=>v.id!==vid);data.logs=data.logs.filter(l=>l.varietyId!==vid);await save();renderAll();toast(L('deleted'))}
-function renderLog(pref='',show=false){let opts=`<option value="">${L('generalAll')}</option>`+data.varieties.map(v=>`<option value="${v.id}" ${pref===v.id?'selected':''}>${esc(v.name)}</option>`).join(''), html=`<div class="card"><div class="itemHead"><div><div class="big">${L('record')}</div><div class="muted tiny">${data.logs.length} ${L('records').toLowerCase()}</div></div><button class="btn small" onclick="renderLog('',true)">${L('addRecord')}</button></div></div>`;if(show||pref)html+=`<div class="card" id="logForm"><div class="big">${L('addRecord')}</div><div class="row"><div><label>${L('date')}</label><input id="lDate" type="date" value="${today()}"></div><div><label>${L('variety')}</label><select id="lVariety" onchange="refreshPlantSelect()">${opts}</select></div></div><div class="row"><div><label>${L('specificPlant')}</label><select id="lPlant"></select></div><div><label>${L('action')}</label><select id="lType">${INTERNAL_ACTIONS.map(x=>`<option value="${x}">${tAction(x)}</option>`).join('')}</select></div></div><label>${L('photo')}</label><input id="lPhoto" type="file" accept="image/*"><label>${L('note')}</label><textarea id="lNote"></textarea><button class="btn full" onclick="saveLog()">${L('saveRecord')}</button></div>`;html+=`<div class="card"><div class="title">${L('history')}</div>${data.logs.length?[...data.logs].sort((a,b)=>b.date.localeCompare(a.date)).map(logHtml).join(''):'<div class="empty">'+L('noLogs')+'</div>'}</div>`;document.getElementById('log').innerHTML=html;refreshPlantSelect();hydrateStoragePreviews(document.getElementById('log'))}
+function renderLog(pref='',show=false){let opts=`<option value="">${L('generalAll')}</option>`+data.varieties.map(v=>`<option value="${v.id}" ${pref===v.id?'selected':''}>${esc(v.name)}</option>`).join(''), html=`<div class="card"><div class="itemHead"><div><div class="big">${L('record')}</div><div class="muted tiny">${data.logs.length} ${L('records').toLowerCase()}</div></div><button class="btn small" onclick="renderLog('',true)">${L('addRecord')}</button></div></div>`;if(show||pref)html+=`<div class="card" id="logForm"><div class="big">${L('addRecord')}</div><div class="row"><div><label>${L('date')}</label><input id="lDate" type="date" value="${today()}"></div><div><label>${L('variety')}</label><select id="lVariety" onchange="refreshPlantSelect()">${opts}</select></div></div><div class="row"><div><label>${L('specificPlant')}</label><select id="lPlant"></select></div><div><label>${L('action')}</label><select id="lType">${INTERNAL_ACTIONS.map(x=>`<option value="${x}">${tAction(x)}</option>`).join('')}</select></div></div><label>${L('photo')}</label><input id="lPhoto" type="file" accept="image/*"><label>${L('note')}</label><textarea id="lNote"></textarea><button class="btn full" onclick="saveLog()">${L('saveRecord')}</button></div>`;html+=`<div class="card"><div class="title">${L('history')}</div>${data.logs.length?[...data.logs].sort((a,b)=>b.date.localeCompare(a.date)).map(logHtml).join(''):'<div class="empty">'+L('noLogs')+'</div>'}</div>`;document.getElementById('log').innerHTML=html;refreshPlantSelect();hydrateStoragePreviewsDiagnostic(document.getElementById('log'))}
 function quickLog(vid){goTab('log');renderLog(vid,true);setTimeout(()=>document.getElementById('logForm')?.scrollIntoView({behavior:'smooth'}),40)}
 function resizePhoto(f){
   return new Promise((res,rej)=>{
@@ -1039,6 +1046,68 @@ async function deleteCurrentUserCloudData(){
 window.deleteCurrentUserCloudData=deleteCurrentUserCloudData;
 
 async function deleteLog(lid){if(!confirm(L('confirmDeleteLog')))return;data.logs=data.logs.filter(l=>l.id!==lid);await save();renderAll();toast(L('logDeleted'))}
+
+function setPhotoDiag(img,msg,cls=''){
+  try{
+    const d=document.getElementById(img.id+'_diag');
+    if(d){d.textContent=msg;d.className='photoDiag '+cls}
+  }catch(e){}
+}
+
+async function hydrateStoragePreviewsDiagnostic(scope=document){
+  const root=scope||document;
+  const imgs=[...root.querySelectorAll('img[data-storage-preview]')];
+  for(const img of imgs){
+    try{
+      const kind=img.dataset.kind;
+      const id1=img.dataset.id1;
+      const id2=img.dataset.id2||'';
+      let photo='';
+      if(kind==='log'){
+        const l=data.logs.find(x=>x.id===id1);
+        photo=l&&l.photo;
+      }else if(kind==='plant'){
+        const v=data.varieties.find(x=>x.id===id1);
+        const p=v&&ensurePlants(v).find(x=>x.id===id2);
+        photo=p&&p.photo;
+      }
+      if(!photo){
+        setPhotoDiag(img,'Diagnòstic: no trobo dades de foto','err');
+        continue;
+      }
+      if(typeof photo==='string'){
+        if(photo.startsWith('data:image/')){
+          img.src=photo;
+          setPhotoDiag(img,'Foto antiga dins JSON','ok');
+        }else{
+          img.src=photo;
+          setPhotoDiag(img,'Foto amb URL directa','warn');
+        }
+        continue;
+      }
+      if(isStoragePhotoObject(photo)){
+        setPhotoDiag(img,'Storage: demanant URL temporal...','warn');
+        const url=await resolveStoragePhoto(photo);
+        if(!url){
+          setPhotoDiag(img,'Storage: URL temporal buida','err');
+          continue;
+        }
+        img.src=url;
+        img.onload=()=>setPhotoDiag(img,'Storage: imatge carregada correctament','ok');
+        img.onerror=()=>setPhotoDiag(img,'Storage: URL rebuda però la imatge no carrega','err');
+        setTimeout(()=>{
+          if(img.complete && img.naturalWidth>0)setPhotoDiag(img,'Storage: imatge carregada correctament','ok');
+        },800);
+        continue;
+      }
+      setPhotoDiag(img,'Diagnòstic: format de foto desconegut: '+JSON.stringify(photo).slice(0,120),'err');
+    }catch(err){
+      console.error('hydrateStoragePreviewsDiagnostic error',err);
+      setPhotoDiag(img,'Error Storage: '+(err.message||err),'err');
+    }
+  }
+}
+
 function renderCalendar(){let ev=[];data.logs.forEach(l=>ev.push({...l}));data.varieties.forEach(v=>{let h=harvestDate(v);if(h)ev.push({date:h,varietyId:v.id,type:L('harvestEstimated'),note:isAuto(v)?`${L('estimate')} ${v.brandWeeks||'?'} ${L('fromGerm')}`:(v.brandHarvest?tSlot(v.brandHarvest):L('estimate'))})});ev=ev.filter(e=>months.includes(new Date(e.date+'T12:00:00').getMonth())).sort((a,b)=>a.date.localeCompare(b.date));let html=`<div class="card"><div class="big">${L('calendar')} ${data.season}</div><div class="muted">${L('seasonRange')}</div></div>`;months.forEach(m=>{let arr=ev.filter(e=>new Date(e.date+'T12:00:00').getMonth()===m);html+=`<h2 class="month">${I18N[LANG].months[m]}</h2>`;if(!arr.length){html+='<div class="empty">'+L('noRecords')+'</div>';return}let g={};arr.forEach(e=>(g[e.date]??=[]).push(e));Object.keys(g).forEach(d=>{html+=`<div class="day"><div class="datebox">${new Date(d+'T12:00:00').getDate()}</div><div>${g[d].map(e=>`<div class="event ${aClass(e.type)}"><b>${esc(tAction(e.type))}</b> · ${esc(vName(e.varietyId))}${e.plantId?`<div class="tiny muted">🌿 ${esc(pName(e.varietyId,e.plantId))}</div>`:''}<div class="tiny muted">${esc(e.note||'')}</div></div>`).join('')}</div></div>`})});document.getElementById('calendar').innerHTML=html}
 
 function roughSize(obj){
@@ -1136,13 +1205,14 @@ function renderPlantsModal(){
     const p=plants.find(x=>x.id===currentPlantId);
     if(p) html+=plantDetailHtml(v,p);
   }
-  modal.innerHTML=html;hydrateStoragePreviews(modal);
+  modal.innerHTML=html;hydrateStoragePreviewsDiagnostic(modal);
 }
 function plantDetailHtml(v,p){
   const ps=photoDisplaySrc(p.photo);
   const isSt=isStoragePhotoObject(p.photo);
   const imgId='plantPhoto_'+p.id;
-  const src=ps||'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+  const src=(isSt?'data:image/gif;base64,R0lGODlhAQABAAAAACw=':ps);
+  const diag=isSt?'Storage: pendent de carregar URL temporal':'';
   return `<div class="plantDetail"><div class="big">${L('plant')} ${p.number}</div>
   <label>${L('plantName')}</label><input id="pName" value="${esc(p.name||'')}">
   <label>${L('plantStatus')}</label><select id="pStatus">
@@ -1153,7 +1223,7 @@ function plantDetailHtml(v,p){
   </select>
   <label>${L('plantNotes')}</label><textarea id="pNotes">${esc(p.notes||'')}</textarea>
   <label>${L('plantPhoto')}</label><input id="pPhoto" type="file" accept="image/*">
-  ${p.photo?`<img class="plantPhoto" id="${imgId}" src="${src}" ${isSt?`data-storage-preview="1" data-kind="plant" data-id1="${v.id}" data-id2="${p.id}"`:''} onclick="openPhotoFromData('plant','${v.id}','${p.id}')" alt="${L('plantPhoto')}">`:''}
+  ${p.photo?`<img class="plantPhoto" id="${imgId}" src="${src}" ${isSt?`data-storage-preview="1" data-kind="plant" data-id1="${v.id}" data-id2="${p.id}"`:''} onclick="openPhotoFromData('plant','${v.id}','${p.id}')" alt="${L('plantPhoto')}"><div id="${imgId}_diag" class="photoDiag ${isSt?'warn':''}">${diag}</div>`:''}
   <div class="inlineBtns"><button class="btn" onclick="savePlant('${v.id}','${p.id}')">${L('savePlant')}</button><button class="btn danger" onclick="deletePlant('${v.id}','${p.id}')">${L('deletePlant')}</button></div></div>`;
 }
 
@@ -1179,5 +1249,9 @@ function closePhoto(ev){
 
 function renderAll(){applyStatic();renderToday();renderVarieties();renderLog();renderCalendar();renderBackup();applyTheme()}
 applyStatic();document.getElementById('today').innerHTML='<div class="card"><div class="big">OG Calendar</div><div class="muted">Carregant dades...</div></div>';initData().then(()=>initCloudSession().then(()=>{renderAll();updateCloudUi()}));
+
+
+window.addEventListener('load',()=>setTimeout(()=>hydrateStoragePreviewsDiagnostic(document),1200));
+
 </script>
 </body></html>
