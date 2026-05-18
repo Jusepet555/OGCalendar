@@ -310,6 +310,7 @@ checkingSession:'Comprovant sessió guardada...',
 signedOutOk:'Sessió tancada correctament',signingOut:'Tancant sessió...',
 logoutReloading:'Sortint i reiniciant la sessió...',
 newUserEmpty:'Aquest usuari encara no tenia dades al núvol. Comença amb un calendari buit.',userDataIsolated:'Dades separades per usuari.',
+deleteMyCloud:'Esborrar dades del núvol d’aquest usuari',confirmDeleteMyCloud:'Segur que vols esborrar les dades del núvol d’aquest usuari? No afecta altres usuaris.',myCloudDeleted:'Dades del núvol d’aquest usuari esborrades. Calendari buit creat.',
 months:['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre'],
 slots:['No ho sé','1a setmana de setembre','2a setmana de setembre','3a setmana de setembre','4a setmana de setembre',"1a setmana d'octubre","2a setmana d'octubre","3a setmana d'octubre","4a setmana d'octubre",'1a setmana de novembre','2a setmana de novembre','3a setmana de novembre','4a setmana de novembre']
 },
@@ -341,6 +342,7 @@ checkingSession:'Comprobando sesión guardada...',
 signedOutOk:'Sesión cerrada correctamente',signingOut:'Cerrando sesión...',
 logoutReloading:'Saliendo y reiniciando la sesión...',
 newUserEmpty:'Este usuario todavía no tenía datos en la nube. Empieza con un calendario vacío.',userDataIsolated:'Datos separados por usuario.',
+deleteMyCloud:'Borrar datos de la nube de este usuario',confirmDeleteMyCloud:'¿Seguro que quieres borrar los datos de la nube de este usuario? No afecta a otros usuarios.',myCloudDeleted:'Datos de la nube de este usuario borrados. Calendario vacío creado.',
 months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
 slots:['No lo sé','1.ª semana de septiembre','2.ª semana de septiembre','3.ª semana de septiembre','4.ª semana de septiembre','1.ª semana de octubre','2.ª semana de octubre','3.ª semana de octubre','4.ª semana de octubre','1.ª semana de noviembre','2.ª semana de noviembre','3.ª semana de noviembre','4.ª semana de noviembre']
 },
@@ -372,6 +374,7 @@ checkingSession:'Checking saved session...',
 signedOutOk:'Session signed out successfully',signingOut:'Signing out...',
 logoutReloading:'Signing out and restarting session...',
 newUserEmpty:'This user had no cloud data yet. Starting with an empty calendar.',userDataIsolated:'Data separated by user.',
+deleteMyCloud:'Delete this user’s cloud data',confirmDeleteMyCloud:'Are you sure you want to delete this user’s cloud data? It does not affect other users.',myCloudDeleted:'This user’s cloud data was deleted. Empty calendar created.',
 months:['January','February','March','April','May','June','July','August','September','October','November','December'],
 slots:["I don't know",'1st week of September','2nd week of September','3rd week of September','4th week of September','1st week of October','2nd week of October','3rd week of October','4th week of October','1st week of November','2nd week of November','3rd week of November','4th week of November']
 },
@@ -403,6 +406,7 @@ checkingSession:'Kontrollerer gemt session...',
 signedOutOk:'Session lukket korrekt',signingOut:'Logger ud...',
 logoutReloading:'Logger ud og genstarter session...',
 newUserEmpty:'Denne bruger havde endnu ingen data i skyen. Starter med en tom kalender.',userDataIsolated:'Data adskilt pr. bruger.',
+deleteMyCloud:'Slet denne brugers skydata',confirmDeleteMyCloud:'Er du sikker på, at du vil slette denne brugers skydata? Det påvirker ikke andre brugere.',myCloudDeleted:'Denne brugers skydata er slettet. Tom kalender oprettet.',
 months:['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'],
 slots:['Ved ikke','1. uge i september','2. uge i september','3. uge i september','4. uge i september','1. uge i oktober','2. uge i oktober','3. uge i oktober','4. uge i oktober','1. uge i november','2. uge i november','3. uge i november','4. uge i november']
 }
@@ -606,6 +610,7 @@ async function signInCloud(){
     if(error){setAuthMsg(L('authError')+': '+error.message,'err');return}
     if(!res || !res.user){setAuthMsg(L('authError'),'err');return}
     cloudUser=res.user;cloudReady=true;cloudSaveState='loading';cloudLastError='';updateCloudUi();
+    data=emptyCloudData();renderAll();
     setAuthMsg(L('loadingCloud'));
     const loaded=await loadCloudData(false);
     if(!loaded){
@@ -631,6 +636,7 @@ async function hardLogoutCloud(){
   try{localStorage.setItem(FORCE_LOGIN_KEY,'1')}catch(e){}
   hardLoggedOut=true;
   cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
+  try{data=emptyCloudData();renderAll()}catch(e){}
   try{
     const keys=[];
     for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)keys.push(k)}
@@ -874,6 +880,32 @@ function resizePhoto(f){
   })
 }
 async function saveLog(){let photo=await resizePhoto(document.getElementById('lPhoto').files[0]),l={id:id(),date:val('lDate'),varietyId:val('lVariety'),type:val('lType'),plantId:val('lPlant'),note:val('lNote'),photo};if(!l.date)return toast(L('pickDate'));data.logs.push(l);let v=data.varieties.find(v=>v.id===l.varietyId);if(v){if(l.type==='Inici floració'&&!v.flowerDate)v.flowerDate=l.date;if(l.type==='Germinació'&&!v.germDate)v.germDate=l.date;if(l.type==='Collita')v.harvestReal=l.date}await save();renderAll();goTab('today');toast(L('logSaved'))}
+
+async function deleteCurrentUserCloudData(){
+  if(!sb||!cloudUser){toast(L('cloudOffline'));return}
+  if(!confirm(L('confirmDeleteMyCloud')))return;
+  try{
+    cloudSaveState='saving';cloudLastError='';updateCloudUi();
+    const {error}=await sb.from('og_calendar_data').delete().eq('user_id',cloudUser.id);
+    if(error)throw error;
+    data=emptyCloudData();
+    cloudLastSaved='';cloudLastLoaded='';
+    try{localStorage.removeItem(userScopedKey(cloudUser.id))}catch(e){}
+    await save(false);
+    await saveCloudData(false);
+    renderAll();
+    toast(L('myCloudDeleted'));
+    updateCloudUi();
+  }catch(err){
+    console.error(err);
+    cloudSaveState='error';
+    cloudLastError=(err && (err.message||err.details||err.hint||err.code)) ? [err.message,err.details,err.hint,err.code].filter(Boolean).join(' · ') : String(err);
+    updateCloudUi();
+    toast(L('cloudErrorDetail')+': '+cloudLastError);
+  }
+}
+window.deleteCurrentUserCloudData=deleteCurrentUserCloudData;
+
 async function deleteLog(lid){if(!confirm(L('confirmDeleteLog')))return;data.logs=data.logs.filter(l=>l.id!==lid);await save();renderAll();toast(L('logDeleted'))}
 function renderCalendar(){let ev=[];data.logs.forEach(l=>ev.push({...l}));data.varieties.forEach(v=>{let h=harvestDate(v);if(h)ev.push({date:h,varietyId:v.id,type:L('harvestEstimated'),note:isAuto(v)?`${L('estimate')} ${v.brandWeeks||'?'} ${L('fromGerm')}`:(v.brandHarvest?tSlot(v.brandHarvest):L('estimate'))})});ev=ev.filter(e=>months.includes(new Date(e.date+'T12:00:00').getMonth())).sort((a,b)=>a.date.localeCompare(b.date));let html=`<div class="card"><div class="big">${L('calendar')} ${data.season}</div><div class="muted">${L('seasonRange')}</div></div>`;months.forEach(m=>{let arr=ev.filter(e=>new Date(e.date+'T12:00:00').getMonth()===m);html+=`<h2 class="month">${I18N[LANG].months[m]}</h2>`;if(!arr.length){html+='<div class="empty">'+L('noRecords')+'</div>';return}let g={};arr.forEach(e=>(g[e.date]??=[]).push(e));Object.keys(g).forEach(d=>{html+=`<div class="day"><div class="datebox">${new Date(d+'T12:00:00').getDate()}</div><div>${g[d].map(e=>`<div class="event ${aClass(e.type)}"><b>${esc(tAction(e.type))}</b> · ${esc(vName(e.varietyId))}${e.plantId?`<div class="tiny muted">🌿 ${esc(pName(e.varietyId,e.plantId))}</div>`:''}<div class="tiny muted">${esc(e.note||'')}</div></div>`).join('')}</div></div>`})});document.getElementById('calendar').innerHTML=html}
 
@@ -904,7 +936,7 @@ function downloadJson(obj,name,msg){
   toast(msg);
 }
 
-function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn danger full" type="button" id="cloudSignOutBtn" onclick="hardLogoutCloud();return false">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi();bindCloudButtons()}
+function renderBackup(){const full=roughSize(data), light=roughSize(cloneWithoutPhotos(data));const cloudControls=`<div class="card"><div class="itemHead"><div><div class="big">${L('cloudStatus')}</div><div class="tiny muted" id="cloudBackupStatus">${cloudUser?L('cloudOnline'):L('cloudOffline')}</div><div class="cloudSaveLine" id="cloudSaveLine">${cloudUser?L('autoSaveOn'):L('cloudOffline')}</div></div><span class="cloudBadge ${cloudUser?'':'off'}" id="cloudBadge">☁️ <span id="cloudBadgeText">${cloudUser?L('cloudOnline'):L('cloudOffline')}</span></span></div><div class="cloudDebugLine" id="cloudDebugLine"></div><div class="row"><button class="btn full" onclick="saveCloudManual()">${L('syncNow')}</button><button class="btn secondary full" onclick="loadCloudManual()">${L('loadCloud')}</button></div><button class="btn secondary full" type="button" onclick="deleteCurrentUserCloudData();return false">${L('deleteMyCloud')}</button><div style="height:8px"></div><button class="btn danger full" type="button" id="cloudSignOutBtn" onclick="hardLogoutCloud();return false">${L('signOut')}</button></div>`;document.getElementById('backup').innerHTML=cloudControls+`<div class="card"><div class="big">${L('copies')}</div><p class="muted">${L('copiesText')}</p><div class="warn">${L('copiesWarn')}</div><div style="height:12px"></div><button class="btn full" onclick="exportData()">${L('exportCopy')}</button><div style="height:10px"></div><button class="btn secondary full" onclick="exportLightData()">${L('exportLight')}</button><div style="height:10px"></div><label>${L('importCopy')}</label><input type="file" accept=".json,application/json,text/plain" onchange="importData(event)"><div style="height:16px"></div><label>${L('theme')}</label><div class="switchRow"><input id="darkSwitchBackup" class="switch" type="checkbox" onchange="setDark(this.checked)"><span>${L('darkMode')}</span></div><div style="height:16px"></div><button class="btn secondary full" onclick="cleanupAndNotify()">Netejar memòria antiga</button><div style="height:10px"></div><button class="btn secondary full" onclick="newSeason()">${L('newSeason')}</button></div><div class="card"><div class="title">${L('status')}</div><div class="muted tiny">${L('saved')}: ${new Date(data.updatedAt||Date.now()).toLocaleString(locale())}</div><div class="muted tiny">${L('varieties')}: ${data.varieties.length} · ${L('records')}: ${data.logs.length}</div><div class="muted tiny">${L('storageInfo')}: ${humanSize(full)} · ${L('exportLight')}: ${humanSize(light)}</div></div>`;applyTheme();updateCloudUi();bindCloudButtons()}
 function exportData(){downloadJson(data,`calendari-cultiu-${data.season}.json`,L('exported'))}
 function exportLightData(){downloadJson(cloneWithoutPhotos(data),`calendari-cultiu-${data.season}-sense-fotos.json`,L('photosRemoved'))}
 function importData(ev){
