@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v20: arregla previsualitzacions de fotos a Supabase Storage -->
+<!-- OG Calendar Cloud v21: v19 + fix segur de previsualitzacions Storage -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -862,32 +862,33 @@ function status(v){if(v.harvestReal)return'<span class="pill harvest">'+L('finis
 function summary(v){let h=harvestDate(v), lines=[], now=today();if(v.germDate)lines.push(L('germLine',{date:fmt(v.germDate),days:Math.max(0,days(v.germDate,now))}));if(v.flowerDate){let f=flowerInfo(v);lines.push(L('flowerLine',{w:f.week,d:f.day}))}else if(v.germDate)lines.push(L('growthDay',{n:Math.max(0,days(v.germDate,now))+1}));if(h){let pct=0;if(isAuto(v)&&v.germDate){pct=Math.min(100,Math.max(0,days(v.germDate,now)/Math.max(1,days(v.germDate,h))*100))}else if(v.flowerDate){pct=Math.min(100,Math.max(0,days(v.flowerDate,now)/Math.max(1,days(v.flowerDate,h))*100))}let left=days(now,h);lines.push(`<div class="progress"><div class="bar" style="width:${pct}%"></div></div>`);lines.push(left>=0?L('harvestEst',{date:fmt(h),days:left}):L('harvestPast',{date:fmt(h),days:Math.abs(left)}))}if(!isAuto(v)&&v.brandHarvest)lines.push(L('outdoorLine',{text:esc(tSlot(v.brandHarvest))}));return lines.join('<div style="height:4px"></div>')||'<span class="muted">'+L('dontKnow')+'</span>'}
 function aClass(t=''){t=String(t).toLowerCase();if(t.includes('plaga')||t.includes('problema')||t.includes('pest'))return'problem';if(t.includes('collita')||t.includes('cosecha')||t.includes('harvest'))return'harvest';if(t.includes('reg')||t.includes('riego')||t.includes('water'))return'water';if(t.includes('fertilitzant')||t.includes('fertilizante')||t.includes('fertilizer'))return'feed';if(t.includes('poda')||t.includes('prun'))return'prune';if(t.includes('prevent'))return'preventive';if(t.includes('trasplant')||t.includes('transplant'))return'transplant';if(t.includes('flor'))return'flower';return'growth'}
 function aLabel(t=''){if(t.includes('Fertilitzant'))return LANG==='ca'?'Fertilitzant':LANG==='es'?'Fertilizante':LANG==='en'?'Fertilizer':'Gødning';if(t.includes('Plaga'))return tAction('Plaga/problema');if(t.includes('Inici'))return L('flowering');return tAction(t).split(' ')[0]||L('action')}
-function logHtml(l){let c=aClass(l.type),ps=photoDisplaySrc(l.photo),isSt=isStoragePhotoObject(l.photo),src=ps||PHOTO_PLACEHOLDER;return`<div class="event ${c}"><div class="itemHead"><div><b>${fmt(l.date)}</b> · ${esc(vName(l.varietyId))}${l.plantId?`<div class="tiny muted">🌿 ${esc(pName(l.varietyId,l.plantId))}</div>`:''}<div class="tiny muted">${esc(tAction(l.type))}</div></div><span class="pill ${c}">${esc(aLabel(l.type))}</span></div>${l.note?`<div style="margin-top:8px">${esc(l.note)}</div>`:''}${l.photo?`<img class="photo" src="${src}" data-photo-kind="log" data-id1="${l.id}" onclick="openPhotoFromData('log','${l.id}')" alt="${L('photo')}">`:''}<div class="inlineBtns"><button class="btn small secondary" onclick="deleteLog('${l.id}')">${L('delete')}</button></div></div>`}
+function logHtml(l){let c=aClass(l.type),ps=photoDisplaySrc(l.photo),src=ps||PHOTO_PLACEHOLDER;return`<div class="event ${c}"><div class="itemHead"><div><b>${fmt(l.date)}</b> · ${esc(vName(l.varietyId))}${l.plantId?`<div class="tiny muted">🌿 ${esc(pName(l.varietyId,l.plantId))}</div>`:''}<div class="tiny muted">${esc(tAction(l.type))}</div></div><span class="pill ${c}">${esc(aLabel(l.type))}</span></div>${l.note?`<div style="margin-top:8px">${esc(l.note)}</div>`:''}${l.photo?`<img class="photo" src="${src}" data-photo-kind="log" data-id1="${l.id}" onclick="openPhotoFromData('log','${l.id}')" onerror="this.style.display='none'" alt="${L('photo')}">`:''}<div class="inlineBtns"><button class="btn small secondary" onclick="deleteLog('${l.id}')">${L('delete')}</button></div></div>`}
 
 const PHOTO_BUCKET='og-calendar-photos';
 
 const PHOTO_PLACEHOLDER='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%" height="100%" fill="#102018"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#7bdc88" font-family="Arial" font-size="28">Carregant foto...</text></svg>`);
 
-async function hydrateStoragePhotos(root=document){
-  const imgs=[...root.querySelectorAll('img[data-photo-kind]')];
-  for(const img of imgs){
-    try{
-      const kind=img.dataset.photoKind, id1=img.dataset.id1, id2=img.dataset.id2;
-      let photo='';
-      if(kind==='log'){
-        const l=data.logs.find(x=>x.id===id1);
-        photo=l&&l.photo;
-      }else if(kind==='plant'){
-        const v=data.varieties.find(x=>x.id===id1);
-        const p=v&&ensurePlants(v).find(x=>x.id===id2);
-        photo=p&&p.photo;
-      }
-      const src=isStoragePhotoObject(photo)?await resolveStoragePhoto(photo):photoDisplaySrc(photo);
-      if(src)img.src=src;
-    }catch(err){
-      console.error('hydrate photo failed',err);
+async function hydrateOnePhotoImg(img){
+  try{
+    const kind=img.dataset.photoKind, id1=img.dataset.id1, id2=img.dataset.id2;
+    let photo='';
+    if(kind==='log'){
+      const l=data.logs.find(x=>x.id===id1);
+      photo=l&&l.photo;
+    }else if(kind==='plant'){
+      const v=data.varieties.find(x=>x.id===id1);
+      const p=v&&ensurePlants(v).find(x=>x.id===id2);
+      photo=p&&p.photo;
     }
+    const src=isStoragePhotoObject(photo)?await resolveStoragePhoto(photo):photoDisplaySrc(photo);
+    if(src)img.src=src;
+  }catch(err){
+    console.error('hydrate photo failed',err);
   }
+}
+
+function hydrateVisibleStoragePhotos(){
+  document.querySelectorAll('img[data-photo-kind]').forEach(img=>hydrateOnePhotoImg(img));
 }
 
 
@@ -1106,7 +1107,7 @@ function renderPlantsModal(){
     const p=plants.find(x=>x.id===currentPlantId);
     if(p) html+=plantDetailHtml(v,p);
   }
-  modal.innerHTML=html;hydrateStoragePhotos(modal);
+  modal.innerHTML=html;
 }
 function plantDetailHtml(v,p){
   return `<div class="plantDetail"><div class="big">${L('plant')} ${p.number}</div>
@@ -1119,7 +1120,7 @@ function plantDetailHtml(v,p){
   </select>
   <label>${L('plantNotes')}</label><textarea id="pNotes">${esc(p.notes||'')}</textarea>
   <label>${L('plantPhoto')}</label><input id="pPhoto" type="file" accept="image/*">
-  ${p.photo?(()=>{const ps=photoDisplaySrc(p.photo),src=ps||PHOTO_PLACEHOLDER;return `<img class="plantPhoto" src="${src}" data-photo-kind="plant" data-id1="${v.id}" data-id2="${p.id}" onclick="openPhotoFromData('plant','${v.id}','${p.id}')" alt="${L('plantPhoto')}">`})():''}
+  ${p.photo?(()=>{const ps=photoDisplaySrc(p.photo),src=ps||PHOTO_PLACEHOLDER;return `<img class="plantPhoto" src="${src}" data-photo-kind="plant" data-id1="${v.id}" data-id2="${p.id}" onclick="openPhotoFromData('plant','${v.id}','${p.id}')" onerror="this.style.display='none'" alt="${L('plantPhoto')}">`})():''}
   <div class="inlineBtns"><button class="btn" onclick="savePlant('${v.id}','${p.id}')">${L('savePlant')}</button><button class="btn danger" onclick="deletePlant('${v.id}','${p.id}')">${L('deletePlant')}</button></div></div>`;
 }
 function selectPlant(pid){currentPlantId=pid;renderPlantsModal();setTimeout(()=>document.querySelector('.plantDetail')?.scrollIntoView({behavior:'smooth',block:'nearest'}),40)}
@@ -1142,7 +1143,15 @@ function closePhoto(ev){
   setTimeout(()=>{img.src=''},150);
 }
 
-function renderAll(){applyStatic();renderToday();renderVarieties();renderLog();renderCalendar();renderBackup();applyTheme();setTimeout(()=>hydrateStoragePhotos(),0)}
+function renderAll(){applyStatic();renderToday();renderVarieties();renderLog();renderCalendar();renderBackup();applyTheme()}
 applyStatic();document.getElementById('today').innerHTML='<div class="card"><div class="big">OG Calendar</div><div class="muted">Carregant dades...</div></div>';initData().then(()=>initCloudSession().then(()=>{renderAll();updateCloudUi()}));
+
+
+window.addEventListener('load',()=>{
+  setTimeout(hydrateVisibleStoragePhotos,300);
+  setTimeout(hydrateVisibleStoragePhotos,1200);
+});
+document.addEventListener('click',()=>setTimeout(hydrateVisibleStoragePhotos,250));
+
 </script>
 </body></html>
