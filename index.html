@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v33: guardat fiable + sessió persistent -->
+<!-- OG Calendar Cloud v34: sessió persistent real -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -221,8 +221,9 @@ const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON
   auth:{
     persistSession:true,
     autoRefreshToken:true,
-    detectSessionInUrl:true,
-    storageKey:'og-calendar-cloud-auth'
+    detectSessionInUrl:false,
+    storage:window.localStorage,
+    storageKey:'og-calendar-supabase-auth'
   }
 }):null;
 const FORCE_LOGIN_KEY='og-calendar-force-login';
@@ -665,7 +666,10 @@ async function signInCloud(){
     const {data:res,error}=await sb.auth.signInWithPassword({email,password});
     if(error){setAuthMsg(L('authError')+': '+error.message,'err');return}
     if(!res || !res.user){setAuthMsg(L('authError'),'err');return}
-    if(res.session)backupCloudSession(res.session);
+    if(res.session){
+      backupCloudSession(res.session);
+      try{await sb.auth.setSession({access_token:res.session.access_token,refresh_token:res.session.refresh_token})}catch(e){console.warn(e)}
+    }
     cloudUser=res.user;cloudReady=true;cloudSaveState='loading';cloudLastError='';updateCloudUi();
     data=emptyCloudData();renderAll();
     setAuthMsg(L('loadingCloud'));
@@ -1363,6 +1367,15 @@ window.addEventListener('pagehide',()=>{
   }catch(e){}
 });
 
+
+
+/* v34: neteja bloqueig antic de login, perquè no tanqui sessió en refrescar */
+try{
+  if(localStorage.getItem('og-calendar-force-login')==='1'){
+    localStorage.removeItem('og-calendar-force-login');
+  }
+}catch(e){}
+
 </script>
-<div id="versionBadge" class="versionBadge">v33 reliable sync</div>
+<div id="versionBadge" class="versionBadge">v34 session fix</div>
 </body></html>
