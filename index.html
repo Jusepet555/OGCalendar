@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v36: no forced logout -->
+<!-- OG Calendar Cloud v37: correcció autoSyncBusy -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -797,6 +797,11 @@ async function loadCloudData(silent=false){
   }
 }
 
+
+/* v37: variables globals de sincronització. Evita autoSyncBusy is not defined */
+var autoSyncBusy = false;
+var lastKnownCloudUpdatedAt = '';
+
 async function applyCloudDataToThisDevice(row,reason='auto'){
   if(!row||!row.data)return false;
   data=normalizeImportedData(row.data);
@@ -1400,5 +1405,5 @@ setInterval(async ()=>{
 },5000);
 
 </script>
-<div id="versionBadge" class="versionBadge">v36 no forced logout</div>
+<div id="versionBadge" class="versionBadge">v37 sync var fix</div>
 </body></html>
