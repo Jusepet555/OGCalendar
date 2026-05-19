@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v34: sessió persistent real -->
+<!-- OG Calendar Cloud v35: cloud authority sync -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -794,15 +794,30 @@ async function autoLoadCloud(reason='auto'){
   if(autoSyncBusy||!sb||!cloudUser)return false;
   try{
     autoSyncBusy=true;
-    const {data:row,error}=await sb.from('og_calendar_data').select('data,updated_at').eq('user_id',cloudUser.id).maybeSingle();
+    const {data:row,error}=await sb
+      .from('og_calendar_data')
+      .select('data,updated_at')
+      .eq('user_id',cloudUser.id)
+      .maybeSingle();
+
     if(error)throw error;
     if(!row||!row.data)return false;
 
-    // En aquesta app cloud, el núvol mana quan entres o tornes a l'app.
-    // Si la data del núvol és diferent de l'última que coneix aquest dispositiu, substituïm local.
-    if(!lastKnownCloudUpdatedAt || row.updated_at !== lastKnownCloudUpdatedAt || reason==='login' || reason==='enter'){
+    const remote=row.updated_at||'';
+    const mustApply =
+      reason==='startup' ||
+      reason==='session' ||
+      reason==='refresh' ||
+      reason==='login' ||
+      reason==='enter' ||
+      !lastKnownCloudUpdatedAt ||
+      remote !== lastKnownCloudUpdatedAt;
+
+    if(mustApply){
       await applyCloudDataToThisDevice(row,reason);
-      if(reason!=='login' && reason!=='enter')toast('Dades actualitzades des del núvol.');
+      if(reason!=='startup'&&reason!=='session'&&reason!=='refresh'&&reason!=='login'&&reason!=='enter'){
+        toast('Dades actualitzades des del núvol.');
+      }
       return true;
     }
     return false;
@@ -887,6 +902,7 @@ async function initCloudSession(){
       }
       renderAll();
       setAuthMsg(L('sessionRestored'),'ok');
+      await autoLoadCloud('session');
       enterApp();
       updateCloudUi();
       return;
@@ -1357,7 +1373,7 @@ window.addEventListener('online',()=>setTimeout(()=>autoLoadCloud('online'),900)
 
 setInterval(()=>{
   if(document.visibilityState==='visible')autoLoadCloud('interval');
-},15000);
+},5000);
 
 
 
@@ -1377,5 +1393,5 @@ try{
 }catch(e){}
 
 </script>
-<div id="versionBadge" class="versionBadge">v34 session fix</div>
+<div id="versionBadge" class="versionBadge">v35 cloud authority</div>
 </body></html>
