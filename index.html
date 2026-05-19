@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v28: Storage foto gran + miniatura JSON -->
+<!-- OG Calendar Cloud v29: correcció photoThumbSrc global -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -1195,6 +1195,43 @@ function closePhoto(ev){
 
 function renderAll(){applyStatic();renderToday();renderVarieties();renderLog();renderCalendar();renderBackup();applyTheme()}
 applyStatic();document.getElementById('today').innerHTML='<div class="card"><div class="big">OG Calendar</div><div class="muted">Carregant dades...</div></div>';initData().then(()=>initCloudSession().then(()=>{renderAll();updateCloudUi()}));
+
+
+/* v29: funcions globals de miniatura, per evitar errors de scope */
+window.photoThumbSrc = window.photoThumbSrc || function(photo){
+  if(!photo)return '';
+  if(typeof photo==='string')return photo;
+  if(photo && typeof photo==='object' && photo.kind==='storage'){
+    return photo.thumb || photo.thumbnail || photo.signedUrl || '';
+  }
+  return '';
+};
+
+window.resizePhotoThumb = window.resizePhotoThumb || function(f){
+  return new Promise((res,rej)=>{
+    if(!f)return res('');
+    let img=new Image(),r=new FileReader();
+    r.onload=e=>{
+      img.onload=()=>{
+        let max=360,w=img.width,h=img.height;
+        if(w>h&&w>max){h=Math.round(h*max/w);w=max}
+        else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}
+        let c=document.createElement('canvas');
+        c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        res(c.toDataURL('image/jpeg',.48));
+      };
+      img.onerror=()=>rej(Error('No puc processar aquesta miniatura'));
+      img.src=e.target.result;
+    };
+    r.onerror=rej;
+    r.readAsDataURL(f);
+  })
+};
+
+var photoThumbSrc = window.photoThumbSrc;
+var resizePhotoThumb = window.resizePhotoThumb;
+
 </script>
-<div id="versionBadge" class="versionBadge">v28 thumb</div>
+<div id="versionBadge" class="versionBadge">v29 thumb fix</div>
 </body></html>
