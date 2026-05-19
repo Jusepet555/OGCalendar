@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v29: correcció photoThumbSrc global -->
+<!-- OG Calendar Cloud v31: sincronització automàtica real -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -557,7 +557,7 @@ function enterApp(){
   document.body.classList.remove('logged-out');
   const w=document.getElementById('welcome');
   if(w)w.classList.add('hidden');
-}
+;setTimeout(()=>autoLoadCloud('enter'),700)}
 function showLogin(){
   document.body.classList.remove('booting');
   document.body.classList.add('logged-out');
@@ -705,14 +705,8 @@ async function loadCloudData(showToast=true){
     const {data:row,error}=await sb.from('og_calendar_data').select('data,updated_at').eq('user_id',cloudUser.id).maybeSingle();
     if(error)throw error;
     if(row&&row.data){
-      data=normalizeImportedData(row.data);
-      cloudLastLoaded=new Date().toISOString();
-      if(row.updated_at)cloudLastSaved=row.updated_at;
+      await applyCloudDataToThisDevice(row,'manual-load');
       cloudSaveState='loaded';
-      await save(false);
-      saveUserLocalCopy();
-      renderAll();
-      updateCloudUi();
       if(showToast)toast(L('cloudLoaded'));
       return true;
     }
@@ -728,6 +722,54 @@ async function loadCloudData(showToast=true){
     return false
   }
 }
+let autoSyncBusy=false;
+let lastKnownCloudUpdatedAt='';
+
+async function applyCloudDataToThisDevice(row,reason='auto'){
+  if(!row||!row.data)return false;
+  data=normalizeImportedData(row.data);
+  cloudLastLoaded=new Date().toISOString();
+  if(row.updated_at){
+    cloudLastSaved=row.updated_at;
+    lastKnownCloudUpdatedAt=row.updated_at;
+  }
+  try{
+    localStorage.setItem(userScopedKey(cloudUser.id),JSON.stringify(data));
+    localStorage.setItem('og_calendar_data',JSON.stringify(data));
+  }catch(e){console.error(e)}
+  await dbSet(data);
+  saveUserLocalCopy();
+  renderAll();
+  updateCloudUi();
+  return true;
+}
+
+async function autoLoadCloud(reason='auto'){
+  if(autoSyncBusy||!sb||!cloudUser)return false;
+  try{
+    autoSyncBusy=true;
+    const {data:row,error}=await sb.from('og_calendar_data').select('data,updated_at').eq('user_id',cloudUser.id).maybeSingle();
+    if(error)throw error;
+    if(!row||!row.data)return false;
+
+    // En aquesta app cloud, el núvol mana quan entres o tornes a l'app.
+    // Si la data del núvol és diferent de l'última que coneix aquest dispositiu, substituïm local.
+    if(!lastKnownCloudUpdatedAt || row.updated_at !== lastKnownCloudUpdatedAt || reason==='login' || reason==='enter'){
+      await applyCloudDataToThisDevice(row,reason);
+      if(reason!=='login' && reason!=='enter')toast('Dades actualitzades des del núvol.');
+      return true;
+    }
+    return false;
+  }catch(err){
+    console.error('autoLoadCloud error',err);
+    return false;
+  }finally{
+    autoSyncBusy=false;
+  }
+}
+window.autoLoadCloud=autoLoadCloud;
+
+
 async function saveCloudData(showToast=false){
   if(!sb){cloudLastError='Supabase no carregat';cloudSaveState='error';updateCloudUi();return false}
   if(!cloudUser){cloudLastError='Sense usuari';cloudSaveState='error';updateCloudUi();return false}
@@ -738,7 +780,7 @@ async function saveCloudData(showToast=false){
     const payload={user_id:cloudUser.id,data:cloneForExport(data),updated_at:now};
     let {error}=await sb.from('og_calendar_data').upsert(payload,{onConflict:'user_id'});
     if(error)throw error;
-    cloudLastSaved=now;cloudSaveState='saved';cloudLastError='';updateCloudUi();
+    cloudLastSaved=now;lastKnownCloudUpdatedAt=now;cloudSaveState='saved';cloudLastError='';updateCloudUi();
     if(showToast)toast(L('cloudSaved'));
     return true;
   }catch(err){
@@ -1232,6 +1274,14 @@ window.resizePhotoThumb = window.resizePhotoThumb || function(f){
 var photoThumbSrc = window.photoThumbSrc;
 var resizePhotoThumb = window.resizePhotoThumb;
 
+
+
+window.addEventListener('focus',()=>setTimeout(()=>autoLoadCloud('focus'),700));
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')setTimeout(()=>autoLoadCloud('visible'),700);
+});
+window.addEventListener('online',()=>setTimeout(()=>autoLoadCloud('online'),900));
+
 </script>
-<div id="versionBadge" class="versionBadge">v29 thumb fix</div>
+<div id="versionBadge" class="versionBadge">v31 auto sync</div>
 </body></html>
