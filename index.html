@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v35: cloud authority sync -->
+<!-- OG Calendar Cloud v36: no forced logout -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -259,6 +259,41 @@ async function recoverCloudSessionFromBackup(){
     return null;
   }
 }
+
+function cleanLogoutFromUrl(){
+  try{
+    const url=new URL(window.location.href);
+    if(url.searchParams.has('logout')){
+      url.searchParams.delete('logout');
+      history.replaceState({},'',url.pathname+(url.search?url.search:'')+url.hash);
+    }
+  }catch(e){}
+}
+async function recoverSessionIfPossible(reason='recover'){
+  if(!sb||manualSignOut||hardLoggedOut)return false;
+  try{
+    let user=null;
+    const {data:sessionRes}=await sb.auth.getSession();
+    if(sessionRes&&sessionRes.session){
+      backupCloudSession(sessionRes.session);
+      user=sessionRes.session.user;
+    }
+    if(!user){
+      const recovered=await recoverCloudSessionFromBackup();
+      if(recovered)user=recovered;
+    }
+    if(user){
+      cloudUser=user;
+      cloudReady=true;
+      updateCloudUi();
+      await autoLoadCloud(reason);
+      enterApp();
+      return true;
+    }
+  }catch(e){console.error('recoverSessionIfPossible',e)}
+  return false;
+}
+
 function clearCloudSessionBackup(){
   try{localStorage.removeItem(SESSION_BACKUP_KEY)}catch(e){}
 }
@@ -297,26 +332,28 @@ let cloudLastSaved='';
 
 if(sb){
   sb.auth.onAuthStateChange(async (event, session)=>{
-    let mustLogin=false;try{mustLogin=localStorage.getItem(FORCE_LOGIN_KEY)==='1'}catch(e){}
-    if(mustLogin||manualSignOut||hardLoggedOut||new URLSearchParams(window.location.search).has('logout')){
-      cloudUser=null;cloudReady=false;updateCloudUi();showLogin();return;
-    }
+    cleanLogoutFromUrl();
+
+    // v36: no fem fora l'usuari per canvis de pestanya o estats transitoris.
     if(session&&session.user){
       backupCloudSession(session);
-      cloudUser=session.user;lastKnownCloudUpdatedAt='';cloudReady=true;updateCloudUi();
+      cloudUser=session.user;
+      cloudReady=true;
+      updateCloudUi();
+
       if(document.getElementById('welcome') && !document.getElementById('welcome').classList.contains('hidden')){
-        const loaded=await loadCloudData(false);
-        if(!loaded){
-          const localForUser=loadUserLocalCopy(cloudUser.id);
-          data=localForUser||emptyCloudData();
-          await save(false);
-          await saveCloudData(false);
-        }
-        renderAll();
+        await autoLoadCloud('auth');
         enterApp();
       }
-    }else if(event==='SIGNED_OUT'){
-      cloudUser=null;cloudReady=false;updateCloudUi();showLogin();
+      return;
+    }
+
+    // Només mostrem login si l'usuari ha clicat sortir explícitament.
+    if(event==='SIGNED_OUT' && (manualSignOut||hardLoggedOut)){
+      cloudUser=null;
+      cloudReady=false;
+      updateCloudUi();
+      showLogin();
     }
   });
 }
@@ -632,7 +669,7 @@ async function signUpCloud(){
   if(!sb){setAuthMsg(L('supabaseNotLoaded'),'err');return}
   const email=val('authEmail').trim(), password=val('authPassword');
   if(!email||!password){setAuthMsg(L('enterEmailPass'),'err');return}
-  try{localStorage.removeItem(FORCE_LOGIN_KEY)}catch(e){}
+  cleanLogoutFromUrl();
   manualSignOut=false;hardLoggedOut=false;
   setAuthMsg(L('creatingAccount'));
   const btn=document.getElementById('signUpBtn'); if(btn)btn.disabled=true;
@@ -658,7 +695,7 @@ async function signInCloud(){
   if(!sb){setAuthMsg(L('supabaseNotLoaded'),'err');return}
   const email=val('authEmail').trim(), password=val('authPassword');
   if(!email||!password){setAuthMsg(L('enterEmailPass'),'err');return}
-  try{localStorage.removeItem(FORCE_LOGIN_KEY)}catch(e){}
+  cleanLogoutFromUrl();
   manualSignOut=false;hardLoggedOut=false;
   setAuthMsg(L('signingIn'));
   const btn=document.getElementById('signInBtn'); if(btn)btn.disabled=true;
@@ -694,38 +731,27 @@ async function signInCloud(){
 
 async function hardLogoutCloud(){
   manualSignOut=true;
-  try{localStorage.setItem(FORCE_LOGIN_KEY,'1')}catch(e){}
-  clearCloudSessionBackup();
   hardLoggedOut=true;
+  clearCloudSessionBackup();
   cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
   try{data=emptyCloudData();renderAll()}catch(e){}
   try{
     const keys=[];
     for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)keys.push(k)}
     keys.forEach(k=>{
-      if(k==='og-calendar-cloud-auth'||k.includes('supabase')||k.startsWith('sb-')||k.includes('auth-token'))localStorage.removeItem(k);
-    });
-    const skeys=[];
-    for(let i=0;i<sessionStorage.length;i++){const k=sessionStorage.key(i);if(k)skeys.push(k)}
-    skeys.forEach(k=>{
-      if(k==='og-calendar-cloud-auth'||k.includes('supabase')||k.startsWith('sb-')||k.includes('auth-token'))sessionStorage.removeItem(k);
+      if(k==='og-calendar-supabase-auth'||k===SESSION_BACKUP_KEY||k.includes('supabase')||k.startsWith('sb-')||k.includes('auth-token'))localStorage.removeItem(k);
     });
   }catch(e){console.error('auth storage cleanup failed',e)}
   try{
-    if(sb && sb.auth){
-      Promise.race([
-        sb.auth.signOut({scope:'local'}),
-        new Promise(resolve=>setTimeout(resolve,250))
-      ]).catch(e=>console.error('supabase signout failed',e));
-    }
+    if(sb && sb.auth)await sb.auth.signOut({scope:'local'});
   }catch(e){console.error(e)}
   try{updateCloudUi()}catch(e){}
   showLogin();
   try{setAuthMsg(L('signedOutOk'),'ok')}catch(e){}
   try{toast(L('signedOutOk'))}catch(e){}
-  const base=window.location.href.split('?')[0].split('#')[0];
-  setTimeout(()=>{window.location.replace(base+'?logout='+Date.now())},120);
+  cleanLogoutFromUrl();
 }
+
 window.hardLogoutCloud=hardLogoutCloud;
 
 function bindCloudButtons(){
@@ -873,46 +899,25 @@ async function saveCloudData(silent=false){
 async function saveCloudManual(){await save(false);const ok=await saveCloudData(true);if(ok)toast(L('savedButCheck'))}
 async function loadCloudManual(){await loadCloudData(true)}
 async function initCloudSession(){
-  let mustLogin=false;
-  try{mustLogin=localStorage.getItem(FORCE_LOGIN_KEY)==='1'}catch(e){}
-  if(mustLogin||new URLSearchParams(window.location.search).has('logout')){
-    manualSignOut=true;hardLoggedOut=true;cloudUser=null;cloudReady=false;cloudSaveState='';updateCloudUi();showLogin();return;
-  }
+  cleanLogoutFromUrl();
   if(!sb){showLogin();return}
   try{
     setAuthMsg(L('checkingSession'));
-    let user=null;
-    const {data:sessionRes}=await sb.auth.getSession();
-    if(sessionRes&&sessionRes.session&&sessionRes.session.user)user=sessionRes.session.user;
-    if(!user){
-      const {data:userRes}=await sb.auth.getUser();
-      if(userRes&&userRes.user)user=userRes.user;
-    }
-    if(!user){
-      user=await recoverCloudSessionFromBackup();
-    }
-    if(user&&!manualSignOut&&!hardLoggedOut){
-      cloudUser=user;cloudReady=true;cloudSaveState='loading';cloudLastError='';updateCloudUi();
-      const loaded=await loadCloudData(false);
-      if(!loaded){
-        const localForUser=loadUserLocalCopy(cloudUser.id);
-        data=localForUser||emptyCloudData();
-        await save(false);
-        await saveCloudData(false);
-      }
-      renderAll();
+    const ok=await recoverSessionIfPossible('startup');
+    if(ok){
       setAuthMsg(L('sessionRestored'),'ok');
-      await autoLoadCloud('session');
-      enterApp();
-      updateCloudUi();
       return;
     }
   }catch(e){
     console.error('session restore error',e);
   }
-  cloudUser=null;cloudReady=false;cloudSaveState='';updateCloudUi();
+  cloudUser=null;
+  cloudReady=false;
+  cloudSaveState='';
+  updateCloudUi();
   showLogin();
 }
+
 async function initData(){
   try{
     const fromDb=await dbGet();
@@ -1363,35 +1368,37 @@ var resizePhotoThumb = window.resizePhotoThumb;
 
 
 
-window.addEventListener('focus',()=>setTimeout(()=>autoLoadCloud('focus'),700));
+
+
+
+
+
+
+
+window.addEventListener('focus',()=>setTimeout(async ()=>{
+  if(!cloudUser) await recoverSessionIfPossible('focus-recover');
+  else await autoLoadCloud('focus');
+},400));
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible')setTimeout(()=>autoLoadCloud('visible'),700);
+  if(document.visibilityState==='visible')setTimeout(async ()=>{
+    if(!cloudUser) await recoverSessionIfPossible('visible-recover');
+    else await autoLoadCloud('visible');
+  },400);
 });
-window.addEventListener('online',()=>setTimeout(()=>autoLoadCloud('online'),900));
+window.addEventListener('online',()=>setTimeout(async ()=>{
+  if(!cloudUser) await recoverSessionIfPossible('online-recover');
+  else await autoLoadCloud('online');
+},600));
 
 
 
-setInterval(()=>{
-  if(document.visibilityState==='visible')autoLoadCloud('interval');
+setInterval(async ()=>{
+  if(document.visibilityState==='visible'){
+    if(!cloudUser) await recoverSessionIfPossible('interval-recover');
+    else await autoLoadCloud('interval');
+  }
 },5000);
 
-
-
-window.addEventListener('pagehide',()=>{
-  try{
-    if(sb && cloudUser && cloudReady)saveCloudData(true);
-  }catch(e){}
-});
-
-
-
-/* v34: neteja bloqueig antic de login, perquè no tanqui sessió en refrescar */
-try{
-  if(localStorage.getItem('og-calendar-force-login')==='1'){
-    localStorage.removeItem('og-calendar-force-login');
-  }
-}catch(e){}
-
 </script>
-<div id="versionBadge" class="versionBadge">v35 cloud authority</div>
+<div id="versionBadge" class="versionBadge">v36 no forced logout</div>
 </body></html>
