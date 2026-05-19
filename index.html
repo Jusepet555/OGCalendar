@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v31: sincronització automàtica real -->
+<!-- OG Calendar Cloud v32: sync fix updated_at -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -265,7 +265,7 @@ if(sb){
       cloudUser=null;cloudReady=false;updateCloudUi();showLogin();return;
     }
     if(session&&session.user){
-      cloudUser=session.user;cloudReady=true;updateCloudUi();
+      cloudUser=session.user;lastKnownCloudUpdatedAt='';cloudReady=true;updateCloudUi();
       if(document.getElementById('welcome') && !document.getElementById('welcome').classList.contains('hidden')){
         const loaded=await loadCloudData(false);
         if(!loaded){
@@ -698,32 +698,35 @@ function bindCloudButtons(){
 
 async function signOutCloud(){return hardLogoutCloud()}
 window.signOutCloud=signOutCloud;
-async function loadCloudData(showToast=true){
+async function loadCloudData(silent=false){
   if(!sb||!cloudUser)return false;
   try{
     cloudSaveState='loading';cloudLastError='';updateCloudUi();
-    const {data:row,error}=await sb.from('og_calendar_data').select('data,updated_at').eq('user_id',cloudUser.id).maybeSingle();
+    const {data:row,error}=await sb
+      .from('og_calendar_data')
+      .select('data,updated_at')
+      .eq('user_id',cloudUser.id)
+      .maybeSingle();
     if(error)throw error;
-    if(row&&row.data){
-      await applyCloudDataToThisDevice(row,'manual-load');
-      cloudSaveState='loaded';
-      if(showToast)toast(L('cloudLoaded'));
-      return true;
+    if(!row||!row.data){
+      cloudSaveState='ready';updateCloudUi();
+      if(!silent)toast(L('cloudNoData'));
+      return false;
     }
-    cloudSaveState='ready';
+    await applyCloudDataToThisDevice(row,'load');
+    cloudSaveState='loaded';
     updateCloudUi();
-    return false;
+    if(!silent)toast(L('cloudLoaded'));
+    return true;
   }catch(err){
     console.error(err);
     cloudSaveState='error';
-    cloudLastError=(err && (err.message||err.details||err.hint||err.code)) ? [err.message,err.details,err.hint,err.code].filter(Boolean).join(' · ') : String(err);
+    cloudLastError=(err&&(err.message||err.details||err.hint||err.code))?[err.message,err.details,err.hint,err.code].filter(Boolean).join(' · '):String(err);
     updateCloudUi();
-    if(showToast)toast(L('cloudLoadError')+': '+cloudLastError);
-    return false
+    if(!silent)toast(L('cloudLoadError')+': '+cloudLastError);
+    return false;
   }
 }
-let autoSyncBusy=false;
-let lastKnownCloudUpdatedAt='';
 
 async function applyCloudDataToThisDevice(row,reason='auto'){
   if(!row||!row.data)return false;
@@ -770,35 +773,45 @@ async function autoLoadCloud(reason='auto'){
 window.autoLoadCloud=autoLoadCloud;
 
 
-async function saveCloudData(showToast=false){
-  if(!sb){cloudLastError='Supabase no carregat';cloudSaveState='error';updateCloudUi();return false}
-  if(!cloudUser){cloudLastError='Sense usuari';cloudSaveState='error';updateCloudUi();return false}
-  if(cloudSaving)return false;
+async function saveCloudData(silent=false){
+  if(!sb||!cloudUser)return false;
   try{
-    cloudSaving=true;cloudSaveState='saving';cloudLastError='';updateCloudUi();
+    cloudSaveState='saving';cloudLastError='';updateCloudUi();
     const now=new Date().toISOString();
-    const payload={user_id:cloudUser.id,data:cloneForExport(data),updated_at:now};
-    let {error}=await sb.from('og_calendar_data').upsert(payload,{onConflict:'user_id'});
+    data.updatedAt=now;
+
+    const payload={
+      user_id:cloudUser.id,
+      data:cloneForExport(data),
+      updated_at:now
+    };
+
+    const {data:rows,error}=await sb
+      .from('og_calendar_data')
+      .upsert(payload,{onConflict:'user_id'})
+      .select('updated_at')
+      .single();
+
     if(error)throw error;
-    cloudLastSaved=now;lastKnownCloudUpdatedAt=now;cloudSaveState='saved';cloudLastError='';updateCloudUi();
-    if(showToast)toast(L('cloudSaved'));
+
+    const savedAt=(rows&&rows.updated_at)||now;
+    cloudLastSaved=savedAt;
+    lastKnownCloudUpdatedAt=savedAt;
+    cloudSaveState='saved';
+    cloudLastError='';
+    updateCloudUi();
+    if(!silent)toast(L('cloudSaved'));
     return true;
   }catch(err){
-    console.error('Supabase save error',err);
+    console.error(err);
     cloudSaveState='error';
-    cloudLastError=(err && (err.message||err.details||err.hint||err.code)) ? [err.message,err.details,err.hint,err.code].filter(Boolean).join(' · ') : String(err);
+    cloudLastError=(err&&(err.message||err.details||err.hint||err.code))?[err.message,err.details,err.hint,err.code].filter(Boolean).join(' · '):String(err);
     updateCloudUi();
-    if(showToast)toast(`${L('cloudSaveError')}: ${cloudLastError}`);
+    if(!silent)toast(L('cloudSaveError')+': '+cloudLastError);
     return false;
-  }finally{
-    cloudSaving=false;updateCloudUi();
   }
 }
-function scheduleCloudSave(){
-  if(!cloudUser)return;
-  clearTimeout(cloudSaveTimer);
-  cloudSaveTimer=setTimeout(()=>saveCloudData(false),700);
-}
+
 async function saveCloudManual(){await save(false);const ok=await saveCloudData(true);if(ok)toast(L('savedButCheck'))}
 async function loadCloudManual(){await loadCloudData(true)}
 async function initCloudSession(){
@@ -1283,5 +1296,5 @@ document.addEventListener('visibilitychange',()=>{
 window.addEventListener('online',()=>setTimeout(()=>autoLoadCloud('online'),900));
 
 </script>
-<div id="versionBadge" class="versionBadge">v31 auto sync</div>
+<div id="versionBadge" class="versionBadge">v32 sync fix</div>
 </body></html>
