@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v38: logout voluntari corregit -->
+<!-- OG Calendar Cloud v39: logout UI immediat -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -333,9 +333,10 @@ let cloudLastSaved='';
 if(sb){
   sb.auth.onAuthStateChange(async (event, session)=>{
     cleanLogoutFromUrl();
-    /* v38 voluntary logout guard */
+    /* v39 voluntary logout guard */
     if(manualSignOut||hardLoggedOut){
-      if(event==='SIGNED_OUT'||!session){cloudUser=null;cloudReady=false;updateCloudUi();showLogin();}
+      cloudUser=null;cloudReady=false;
+      forceLoginScreenNow();
       return;
     }
 
@@ -734,14 +735,38 @@ async function signInCloud(){
 }
 
 
+
+function forceLoginScreenNow(){
+  try{
+    cloudUser=null;
+    cloudReady=false;
+    updateCloudUi();
+  }catch(e){}
+  try{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(x=>x.classList.add('hidden'));
+  }catch(e){}
+  try{
+    const welcome=document.getElementById('welcome');
+    if(welcome)welcome.classList.remove('hidden');
+    const app=document.getElementById('app');
+    if(app)app.classList.add('hidden');
+    const login=document.getElementById('loginScreen')||document.getElementById('authBox')||document.querySelector('.loginScreen');
+    if(login)login.classList.remove('hidden');
+  }catch(e){}
+  try{showLogin()}catch(e){}
+}
+
 async function hardLogoutCloud(){
   manualSignOut=true;
   hardLoggedOut=true;
 
+  // v39: primer canviem la pantalla, perquè no sembli que continua dins.
+  forceLoginScreenNow();
+
   try{clearCloudSessionBackup()}catch(e){}
   try{cleanLogoutFromUrl()}catch(e){}
 
-  // Clear Supabase/auth storage. This is only for voluntary "Sortir".
   try{
     const keys=[];
     for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)keys.push(k)}
@@ -777,8 +802,9 @@ async function hardLogoutCloud(){
     renderAll();
   }catch(e){console.error(e)}
 
-  try{updateCloudUi()}catch(e){}
-  showLogin();
+  // v39: després de renderAll, tornem a forçar login, perquè renderAll pot repintar app local.
+  forceLoginScreenNow();
+
   try{setAuthMsg(L('signedOutOk'),'ok')}catch(e){}
   try{toast(L('signedOutOk'))}catch(e){}
 }
@@ -1436,5 +1462,5 @@ setInterval(async ()=>{
 },5000);
 
 </script>
-<div id="versionBadge" class="versionBadge">v38 logout fix</div>
+<div id="versionBadge" class="versionBadge">v39 logout ui fix</div>
 </body></html>
