@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ca">
 <head>
-<!-- OG Calendar Cloud v37: correcció autoSyncBusy -->
+<!-- OG Calendar Cloud v38: logout voluntari corregit -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OG Calendar</title>
@@ -333,6 +333,11 @@ let cloudLastSaved='';
 if(sb){
   sb.auth.onAuthStateChange(async (event, session)=>{
     cleanLogoutFromUrl();
+    /* v38 voluntary logout guard */
+    if(manualSignOut||hardLoggedOut){
+      if(event==='SIGNED_OUT'||!session){cloudUser=null;cloudReady=false;updateCloudUi();showLogin();}
+      return;
+    }
 
     // v36: no fem fora l'usuari per canvis de pestanya o estats transitoris.
     if(session&&session.user){
@@ -732,24 +737,50 @@ async function signInCloud(){
 async function hardLogoutCloud(){
   manualSignOut=true;
   hardLoggedOut=true;
-  clearCloudSessionBackup();
-  cloudUser=null;cloudReady=false;cloudLastSaved='';cloudLastLoaded='';cloudSaveState='';cloudLastError='';
-  try{data=emptyCloudData();renderAll()}catch(e){}
+
+  try{clearCloudSessionBackup()}catch(e){}
+  try{cleanLogoutFromUrl()}catch(e){}
+
+  // Clear Supabase/auth storage. This is only for voluntary "Sortir".
   try{
     const keys=[];
     for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)keys.push(k)}
     keys.forEach(k=>{
-      if(k==='og-calendar-supabase-auth'||k===SESSION_BACKUP_KEY||k.includes('supabase')||k.startsWith('sb-')||k.includes('auth-token'))localStorage.removeItem(k);
+      if(
+        k===SESSION_BACKUP_KEY ||
+        k==='og-calendar-supabase-auth' ||
+        k.includes('supabase') ||
+        k.startsWith('sb-') ||
+        k.includes('auth-token')
+      ){
+        localStorage.removeItem(k);
+      }
     });
   }catch(e){console.error('auth storage cleanup failed',e)}
+
   try{
     if(sb && sb.auth)await sb.auth.signOut({scope:'local'});
   }catch(e){console.error(e)}
+
+  cloudUser=null;
+  cloudReady=false;
+  cloudLastSaved='';
+  cloudLastLoaded='';
+  cloudSaveState='';
+  cloudLastError='';
+  lastKnownCloudUpdatedAt='';
+
+  try{
+    data=emptyCloudData();
+    await dbSet(data);
+    saveUserLocalCopy();
+    renderAll();
+  }catch(e){console.error(e)}
+
   try{updateCloudUi()}catch(e){}
   showLogin();
   try{setAuthMsg(L('signedOutOk'),'ok')}catch(e){}
   try{toast(L('signedOutOk'))}catch(e){}
-  cleanLogoutFromUrl();
 }
 
 window.hardLogoutCloud=hardLogoutCloud;
@@ -1405,5 +1436,5 @@ setInterval(async ()=>{
 },5000);
 
 </script>
-<div id="versionBadge" class="versionBadge">v37 sync var fix</div>
+<div id="versionBadge" class="versionBadge">v38 logout fix</div>
 </body></html>
